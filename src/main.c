@@ -9,105 +9,17 @@
 #define GFX_W 800
 #define GFX_H 600
 
-lua_State *lua_init_and_load(const char *filename)
-{
-    lua_State *L = luaL_newstate();
-    if (!L)
-    {
-        fprintf(stderr, "failed to create lua state\n");
-        return NULL;
-    }
+lua_State *lua_init_and_load(const char *filename);
 
-    /* open base + math only */
-    luaL_requiref(L, "_G", luaopen_base, 1);
-    lua_pop(L, 1);
+int lua_call_frame(lua_State *L, double t);
 
-    luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-    lua_pop(L, 1);
+static uint32_t *get_pixels(lua_State *L);
 
-    /* load file */
-    if (luaL_loadfile(L, filename) != LUA_OK)
-    {
-        fprintf(stderr, "lua load error: %s\n", lua_tostring(L, -1));
-        lua_close(L);
-        return NULL;
-    }
+static int lua_set_pixel(lua_State *L);
 
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
-    {
-        fprintf(stderr, "lua runtime error: %s\n", lua_tostring(L, -1));
-        lua_close(L);
-        return NULL;
-    }
+static int lua_width(lua_State *L);
 
-    /* verify frame() */
-    lua_getglobal(L, "frame");
-    if (!lua_isfunction(L, -1))
-    {
-        fprintf(stderr, "error: script must define frame(t)\n");
-        lua_close(L);
-        return NULL;
-    }
-    lua_pop(L, 1);
-
-    return L;
-}
-
-int lua_call_frame(lua_State *L, double t)
-{
-    lua_getglobal(L, "frame");
-    lua_pushnumber(L, t);
-
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK)
-    {
-        fprintf(stderr, "lua frame error: %s\n", lua_tostring(L, -1));
-        return 0;
-    }
-
-    return 1;
-}
-
-static uint32_t *get_pixels(lua_State *L)
-{
-    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_pixels");
-    uint32_t *p = lua_touserdata(L, -1);
-    lua_pop(L, 1);
-    return p;
-}
-
-static int
-lua_set_pixel(lua_State *L)
-{
-    uint32_t *pixels = get_pixels(L);
-    if (!pixels)
-        return 0;
-
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int r = luaL_checkinteger(L, 3);
-    int g = luaL_checkinteger(L, 4);
-    int b = luaL_checkinteger(L, 5);
-
-    if (x < 0 || x >= GFX_W || y < 0 || y >= GFX_H)
-        return 0;
-
-    pixels[y * GFX_W + x] =
-        (r << 24) | (g << 16) | (b << 8) | 0xFF;
-
-    return 0;
-}
-
-static int lua_width(lua_State *L)
-{
-    lua_pushinteger(L, GFX_W);
-    return 1;
-}
-
-static int lua_height(lua_State *L)
-{
-    lua_pushinteger(L, GFX_H);
-    return 1;
-}
+static int lua_height(lua_State *L);
 
 int main(int argc, char *argv[])
 {
@@ -239,4 +151,103 @@ int main(int argc, char *argv[])
     SDL_Quit();
 
     return 0;
+}
+
+lua_State *lua_init_and_load(const char *filename)
+{
+    lua_State *L = luaL_newstate();
+    if (!L)
+    {
+        fprintf(stderr, "failed to create lua state\n");
+        return NULL;
+    }
+
+    /* open base + math only */
+    luaL_requiref(L, "_G", luaopen_base, 1);
+    lua_pop(L, 1);
+
+    luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
+    lua_pop(L, 1);
+
+    /* load file */
+    if (luaL_loadfile(L, filename) != LUA_OK)
+    {
+        fprintf(stderr, "lua load error: %s\n", lua_tostring(L, -1));
+        lua_close(L);
+        return NULL;
+    }
+
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "lua runtime error: %s\n", lua_tostring(L, -1));
+        lua_close(L);
+        return NULL;
+    }
+
+    /* verify frame() */
+    lua_getglobal(L, "frame");
+    if (!lua_isfunction(L, -1))
+    {
+        fprintf(stderr, "error: script must define frame(t)\n");
+        lua_close(L);
+        return NULL;
+    }
+    lua_pop(L, 1);
+
+    return L;
+}
+
+int lua_call_frame(lua_State *L, double t)
+{
+    lua_getglobal(L, "frame");
+    lua_pushnumber(L, t);
+
+    if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "lua frame error: %s\n", lua_tostring(L, -1));
+        return 0;
+    }
+
+    return 1;
+}
+
+static uint32_t *get_pixels(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_pixels");
+    uint32_t *p = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    return p;
+}
+
+static int lua_set_pixel(lua_State *L)
+{
+    uint32_t *pixels = get_pixels(L);
+    if (!pixels)
+        return 0;
+
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int r = luaL_checkinteger(L, 3);
+    int g = luaL_checkinteger(L, 4);
+    int b = luaL_checkinteger(L, 5);
+
+    if (x < 0 || x >= GFX_W || y < 0 || y >= GFX_H)
+        return 0;
+
+    pixels[y * GFX_W + x] =
+        (r << 24) | (g << 16) | (b << 8) | 0xFF;
+
+    return 0;
+}
+
+static int lua_width(lua_State *L)
+{
+    lua_pushinteger(L, GFX_W);
+    return 1;
+}
+
+static int lua_height(lua_State *L)
+{
+    lua_pushinteger(L, GFX_H);
+    return 1;
 }
