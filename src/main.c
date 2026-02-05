@@ -1,5 +1,6 @@
 // minimal SDL3 program
 #include <stdio.h>
+#include <stdlib.h>
 #include <SDL3/SDL.h>
 
 #include <lua.h>
