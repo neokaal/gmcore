@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     }
 
     lua_pushcfunction(L, lua_set_pixel);
-    lua_setglobal(L, "set_pixel");
+    lua_setglobal(L, "px");
     lua_pushcfunction(L, lua_width);
     lua_setglobal(L, "width");
 
