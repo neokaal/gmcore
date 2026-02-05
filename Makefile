@@ -29,7 +29,7 @@ run: build
 
 run-example: build
 	@echo "Running with example lua program..."
-	@$(BINARY) examples/hello.lua
+	@$(BINARY) examples/01_hello.lua
 
 clean:
 	@echo "Cleaning generated CMake files in $(BUILD_DIR)..."

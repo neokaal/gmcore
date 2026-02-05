@@ -67,6 +67,48 @@ int lua_call_frame(lua_State *L, double t)
     return 1;
 }
 
+static uint32_t *get_pixels(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_pixels");
+    uint32_t *p = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    return p;
+}
+
+static int
+lua_set_pixel(lua_State *L)
+{
+    uint32_t *pixels = get_pixels(L);
+    if (!pixels)
+        return 0;
+
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int r = luaL_checkinteger(L, 3);
+    int g = luaL_checkinteger(L, 4);
+    int b = luaL_checkinteger(L, 5);
+
+    if (x < 0 || x >= GFX_W || y < 0 || y >= GFX_H)
+        return 0;
+
+    pixels[y * GFX_W + x] =
+        (r << 24) | (g << 16) | (b << 8) | 0xFF;
+
+    return 0;
+}
+
+static int lua_width(lua_State *L)
+{
+    lua_pushinteger(L, GFX_W);
+    return 1;
+}
+
+static int lua_height(lua_State *L)
+{
+    lua_pushinteger(L, GFX_H);
+    return 1;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -80,6 +122,14 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
+
+    lua_pushcfunction(L, lua_set_pixel);
+    lua_setglobal(L, "set_pixel");
+    lua_pushcfunction(L, lua_width);
+    lua_setglobal(L, "width");
+
+    lua_pushcfunction(L, lua_height);
+    lua_setglobal(L, "height");
 
     // dimensions of the window
     const int SCREEN_WIDTH = GFX_W;
@@ -115,6 +165,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
     memset(pixels, 0, GFX_W * GFX_H * sizeof(uint32_t));
+
+    lua_pushlightuserdata(L, pixels);
+    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_pixels");
+
+    lua_pushinteger(L, GFX_W);
+    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_width");
+
+    lua_pushinteger(L, GFX_H);
+    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_height");
 
     // create renderer
     renderer = SDL_CreateRenderer(window, NULL);
