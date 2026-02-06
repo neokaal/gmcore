@@ -11,8 +11,11 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+// statusbar height
+#define SB_H 32
+
 #define GFX_W 800
-#define GFX_H 600
+#define GFX_H 600 - SB_H
 
 typedef struct
 {
@@ -40,6 +43,7 @@ typedef struct
     // canvas dimensions
     int cvs_width;
     int cvs_height;
+    SDL_FRect cvs_on_win_rect;
 
     // window dimensions
     int win_width;
@@ -63,6 +67,8 @@ int lua_call_draw(lua_State *L, double t);
 static uint32_t *get_pixels(lua_State *L);
 
 static int lua_set_pixel(lua_State *L);
+
+static int lua_bg(lua_State *L);
 
 static time_t get_file_mtime(const char *path)
 {
@@ -122,13 +128,20 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     lua_pushcfunction(gfxlc->L, lua_set_pixel);
     lua_setglobal(gfxlc->L, "px");
 
+    lua_pushcfunction(gfxlc->L, lua_bg);
+    lua_setglobal(gfxlc->L, "bg");
+
     // dimensions of the canvas
     gfxlc->cvs_width = GFX_W;
     gfxlc->cvs_height = GFX_H;
+    gfxlc->cvs_on_win_rect.x = 0;
+    gfxlc->cvs_on_win_rect.y = 0;
+    gfxlc->cvs_on_win_rect.w = gfxlc->cvs_width;
+    gfxlc->cvs_on_win_rect.h = gfxlc->cvs_height;
 
     // dimensions of the window
     gfxlc->win_width = GFX_W;
-    gfxlc->win_height = GFX_H;
+    gfxlc->win_height = GFX_H + SB_H;
 
     // set values width and height in the global namespace
     // width and height are dimensions of the canvas, not the window
@@ -239,8 +252,10 @@ int gfxlc_draw(gfxlc_t *gfxlc)
             gfxlc->pixels,
             GFX_W * sizeof(uint32_t));
 
+        SDL_SetRenderDrawColor(gfxlc->renderer, 0, 0, 10, SDL_ALPHA_OPAQUE);
+
         SDL_RenderClear(gfxlc->renderer);
-        SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, NULL);
+        SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, (const SDL_FRect *)&(gfxlc->cvs_on_win_rect));
         SDL_RenderPresent(gfxlc->renderer);
 
         // handle messages/events
@@ -341,8 +356,8 @@ int load_fonts(gfxlc_t *gfxlc)
         }
         SDL_Log("Loading font from: %s\n", font_path);
         SDL_free(base_path);
-        return 0;
     }
+    return 0;
 }
 
 void lua_load_file(lua_State *L, const char *filename)
@@ -426,6 +441,44 @@ static int lua_set_pixel(lua_State *L)
 
     pixels[y * w + x] =
         (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
+
+    return 0;
+}
+
+static int lua_bg(lua_State *L)
+{
+    uint32_t *pixels = get_pixels(L);
+    if (!pixels)
+    {
+        return 0;
+    }
+    // get the global width and height of the canvas
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_width");
+    int w = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop width
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_height");
+    int h = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop height
+
+    int r = luaL_checkinteger(L, 1);
+    int g = luaL_checkinteger(L, 2);
+    int b = luaL_checkinteger(L, 3);
+    // optional alpha?
+    int a = 255;
+    if (lua_gettop(L) >= 4)
+    {
+        a = luaL_checkinteger(L, 4);
+    }
+
+    uint32_t color = (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            pixels[y * w + x] = color;
+        }
+    }
 
     return 0;
 }
