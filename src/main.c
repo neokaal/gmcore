@@ -73,7 +73,7 @@ void draw_fps(gfxlc_t *gfxlc);
 
 void lua_load_file(lua_State *L, const char *filename);
 
-int lua_call_draw(lua_State *L, double t);
+int lua_call_draw(lua_State *L, float t);
 
 static uint32_t *get_pixels(lua_State *L);
 
@@ -235,6 +235,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
 
 int gfxlc_draw(gfxlc_t *gfxlc)
 {
+    uint64_t prev = SDL_GetTicks();
     while (gfxlc->quit == 0)
     {
         // hot-reload lua script if modified
@@ -255,8 +256,8 @@ int gfxlc_draw(gfxlc_t *gfxlc)
 
         // update
         uint64_t now = SDL_GetTicks();
-        double t = (now - gfxlc->start_ticks) / 1000.0;
-        if (!lua_call_draw(gfxlc->L, t))
+        double dt = (now - prev) / 1000.0;
+        if (!lua_call_draw(gfxlc->L, dt))
         {
             break;
         }
@@ -463,10 +464,10 @@ void lua_load_file(lua_State *L, const char *filename)
     lua_pop(L, 1);
 }
 
-int lua_call_draw(lua_State *L, double t)
+int lua_call_draw(lua_State *L, float dt)
 {
     lua_getglobal(L, "draw");
-    lua_pushnumber(L, t);
+    lua_pushnumber(L, dt);
 
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {

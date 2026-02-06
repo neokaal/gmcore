@@ -1,4 +1,4 @@
-function draw(t)
+function draw(dt)
     -- rectangle dimensions are rw X rh
     local rw = 100
     local rh = 100
