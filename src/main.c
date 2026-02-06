@@ -79,6 +79,8 @@ static uint32_t *get_pixels(lua_State *L);
 
 static int lua_set_pixel(lua_State *L);
 
+static int gfxlc_lua_dump(lua_State *L);
+
 static int lua_bg(lua_State *L);
 
 static time_t get_file_mtime(const char *path)
@@ -138,6 +140,9 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
 
     lua_pushcfunction(gfxlc->L, lua_set_pixel);
     lua_setglobal(gfxlc->L, "px");
+
+    lua_pushcfunction(gfxlc->L, gfxlc_lua_dump);
+    lua_setglobal(gfxlc->L, "dump");
 
     lua_pushcfunction(gfxlc->L, lua_bg);
     lua_setglobal(gfxlc->L, "bg");
@@ -307,6 +312,9 @@ lua_State *lua_init_and_load(const char *filename)
     lua_pop(L, 1);
 
     luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
+    lua_pop(L, 1);
+
+    luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
     lua_pop(L, 1);
 
     /* load file */
@@ -524,6 +532,77 @@ static int lua_set_pixel(lua_State *L)
 
     return 0;
 }
+
+static int gfxlc_lua_dump(lua_State *L)
+{
+    uint32_t *pixels = get_pixels(L);
+    if (!pixels)
+    {
+        return 0;
+    }
+
+    // get the global width and height of the canvas
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_width");
+    int canvas_w = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop width
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_height");
+    int canvas_h = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop height
+
+    // check table
+    if (!lua_istable(L, 1))
+    {
+        return luaL_error(L, "first argument must be a table");
+    }
+
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int w = luaL_checkinteger(L, 4);
+    int h = luaL_checkinteger(L, 5);
+
+    // bounds check
+    if (x < 0 || y < 0 || x + w > canvas_w || y + h > canvas_h)
+    {
+        return luaL_error(L, "dump area out of bounds");
+    }
+
+    int table_len = luaL_len(L, 1);
+    if (table_len < w * h * 3)
+    {
+        return luaL_error(L, "image data is smaller than the target dump area");
+    }
+
+    for (int j = 0; j < h; j++)
+    {
+        for (int i = 0; i < w; i++)
+        {
+            int idx = (j * w + i) * 3 + 1;
+            lua_rawgeti(L, 1, idx);
+            lua_rawgeti(L, 1, idx + 1);
+            lua_rawgeti(L, 1, idx + 2);
+
+            int r = luaL_checkinteger(L, -3);
+            int g = luaL_checkinteger(L, -2);
+            int b = luaL_checkinteger(L, -1);
+            int a = 255; // default alpha
+
+            // check for alpha value
+            if (table_len >= w * h * 4)
+            {
+                lua_rawgeti(L, 1, idx + 3);
+                a = luaL_checkinteger(L, -1);
+                lua_pop(L, 1);
+            }
+
+            pixels[(y + j) * canvas_w + (x + i)] = (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
+
+            lua_pop(L, 3);
+        }
+    }
+
+    return 0;
+}
+
 
 static int lua_bg(lua_State *L)
 {
