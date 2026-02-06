@@ -291,7 +291,9 @@ lua_State *lua_init_and_load(const char *filename)
 
 void gfxlc_shutdown(gfxlc_t *gfxlc)
 {
-    // TODO: add lua cleanup
+    lua_close(gfxlc->L);
+    SDL_DestroyTexture(gfxlc->texture);
+    SDL_DestroyRenderer(gfxlc->renderer);
     SDL_DestroyWindow(gfxlc->window);
     SDL_Quit();
 }
