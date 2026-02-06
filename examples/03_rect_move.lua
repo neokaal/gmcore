@@ -7,14 +7,17 @@ function rect(x, y, w, h)
 end
 
 local time = 0
+local rw = 100
+local rh = 100
+
 function draw(dt)
+    -- update time
     time = time + dt
-    local rw = 100
-    local rh = 100
     -- position of the rectangle is in the center of the screen, but it moves left and right over time
-    local x = width / 2 - rw / 2 + math.floor(math.sin(time / 1000) * 150)
+    local x = width / 2 - rw / 2
     local y = height / 2 - rh / 2
+    local dx = math.floor(math.sin(time / 500) * 200)
 
     bg(0, 0, 0)
-    rect(x, y, rw, rh)
+    rect(x + dx, y, rw, rh)
 end
