@@ -347,19 +347,29 @@ static int lua_set_pixel(lua_State *L)
 {
     uint32_t *pixels = get_pixels(L);
     if (!pixels)
+    {
         return 0;
+    }
 
     int x = luaL_checkinteger(L, 1);
     int y = luaL_checkinteger(L, 2);
     int r = luaL_checkinteger(L, 3);
     int g = luaL_checkinteger(L, 4);
     int b = luaL_checkinteger(L, 5);
+    // optional alpha?
+    int a = 255;
+    if (lua_gettop(L) >= 6)
+    {
+        a = luaL_checkinteger(L, 6);
+    }
 
     if (x < 0 || x >= GFX_W || y < 0 || y >= GFX_H)
+    {
         return 0;
+    }
 
     pixels[y * GFX_W + x] =
-        (r << 24) | (g << 16) | (b << 8) | 0xFF;
+        (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
 
     return 0;
 }
