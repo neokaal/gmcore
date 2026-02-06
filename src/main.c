@@ -362,7 +362,7 @@ int load_fonts(gfxlc_t *gfxlc)
         return SDL_APP_FAILURE;
     }
 
-    char *base_path = SDL_GetBasePath();
+    const char *base_path = SDL_GetBasePath();
     if (base_path)
     {
         char font_path[1024];
@@ -377,7 +377,7 @@ int load_fonts(gfxlc_t *gfxlc)
             return -1;
         }
         SDL_Log("Loading font from: %s\n", font_path);
-        SDL_free(base_path);
+        //SDL_free(base_path);
     }
     return 0;
 }
