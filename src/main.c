@@ -48,6 +48,13 @@ typedef struct
     // window dimensions
     int win_width;
     int win_height;
+
+    // fps texture related state
+    int frameCount;
+    uint64_t lastUpdateTime;
+    SDL_Texture *fpsTexture;
+    SDL_FRect fpsRect;
+    float currentFPS;
 } gfxlc_t;
 
 int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file);
@@ -59,6 +66,10 @@ void gfxlc_shutdown(gfxlc_t *gfxlc);
 lua_State *lua_init_and_load(const char *filename);
 
 int load_fonts(gfxlc_t *gfxlc);
+
+void init_fps_texture(gfxlc_t *gfxlc);
+
+void draw_fps(gfxlc_t *gfxlc);
 
 void lua_load_file(lua_State *L, const char *filename);
 
@@ -171,6 +182,11 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     // load fonts
     load_fonts(gfxlc);
 
+    init_fps_texture(gfxlc);
+
+    // init the fps texture
+    init_fps_texture(gfxlc);
+
     gfxlc->pixels = malloc(gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
     if (!gfxlc->pixels)
     {
@@ -255,7 +271,11 @@ int gfxlc_draw(gfxlc_t *gfxlc)
         SDL_SetRenderDrawColor(gfxlc->renderer, 0, 0, 10, SDL_ALPHA_OPAQUE);
 
         SDL_RenderClear(gfxlc->renderer);
+
         SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, (const SDL_FRect *)&(gfxlc->cvs_on_win_rect));
+
+        draw_fps(gfxlc);
+
         SDL_RenderPresent(gfxlc->renderer);
 
         // handle messages/events
@@ -348,7 +368,7 @@ int load_fonts(gfxlc_t *gfxlc)
         SDL_snprintf(font_path, sizeof(font_path), "%s/SourceCodePro-Regular.ttf", base_path);
 
         // Load a font
-        gfxlc->font = TTF_OpenFont(font_path, 24.0f);
+        gfxlc->font = TTF_OpenFont(font_path, 16.0f);
         if (gfxlc->font == NULL)
         {
             SDL_Log("Failed to load font: %s", SDL_GetError());
@@ -358,6 +378,64 @@ int load_fonts(gfxlc_t *gfxlc)
         SDL_free(base_path);
     }
     return 0;
+}
+
+void init_fps_texture(gfxlc_t *gfxlc)
+{
+    gfxlc->lastUpdateTime = 0;
+    gfxlc->frameCount = 0;
+    gfxlc->fpsTexture = NULL;
+    gfxlc->fpsRect.x = gfxlc->win_width - 100;
+    gfxlc->fpsRect.y = gfxlc->win_height - SB_H + 4;
+    gfxlc->fpsRect.w = 100;
+    gfxlc->fpsRect.h = SB_H - 8;
+    gfxlc->currentFPS = 0.0f;
+}
+
+void draw_fps(gfxlc_t *gfxlc)
+{
+    // Inside your main loop
+    uint64_t currentTime = SDL_GetTicks();
+    gfxlc->frameCount++;
+
+    // Only update the texture every 500ms
+    if (currentTime > gfxlc->lastUpdateTime + 500)
+    {
+        // 1. Calculate FPS
+        float elapsedSeconds = (currentTime - gfxlc->lastUpdateTime) / 1000.0f;
+        gfxlc->currentFPS = gfxlc->frameCount / elapsedSeconds;
+        gfxlc->frameCount = 0;
+        gfxlc->lastUpdateTime = currentTime;
+
+        // 2. Clean up old texture
+        if (gfxlc->fpsTexture)
+        {
+            SDL_DestroyTexture(gfxlc->fpsTexture);
+        }
+
+        // 3. Create new texture
+        char text[32];
+        snprintf(text, sizeof(text), "FPS: %.2f", gfxlc->currentFPS);
+        SDL_Color fg = {255, 255, 255, 255};
+        SDL_Surface *surf = TTF_RenderText_Blended(gfxlc->font, text, 0, fg);
+        gfxlc->fpsTexture = SDL_CreateTextureFromSurface(gfxlc->renderer, surf);
+        gfxlc->fpsRect.w = (float)surf->w;
+        gfxlc->fpsRect.h = (float)surf->h;
+        SDL_DestroySurface(surf);
+
+        if (gfxlc->fpsTexture)
+        {
+            SDL_RenderTexture(gfxlc->renderer, gfxlc->fpsTexture, NULL, &gfxlc->fpsRect);
+        }
+
+        // SDL_Log("FPS is %s\n", text);
+    }
+
+    // 4. Draw the CACHED texture every frame (High performance!)
+    if (gfxlc->fpsTexture)
+    {
+        SDL_RenderTexture(gfxlc->renderer, gfxlc->fpsTexture, NULL, &gfxlc->fpsRect);
+    }
 }
 
 void lua_load_file(lua_State *L, const char *filename)
