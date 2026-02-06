@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -24,6 +25,9 @@ typedef struct
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
+
+    // SDL font
+    TTF_Font *font;
 
     // game loop
     int quit;
@@ -49,6 +53,8 @@ int gfxlc_draw(gfxlc_t *gfxlc);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
 
 lua_State *lua_init_and_load(const char *filename);
+
+int load_fonts(gfxlc_t *gfxlc);
 
 void lua_load_file(lua_State *L, const char *filename);
 
@@ -148,6 +154,9 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         SDL_Quit();
         return 2;
     }
+
+    // load fonts
+    load_fonts(gfxlc);
 
     gfxlc->pixels = malloc(gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
     if (!gfxlc->pixels)
@@ -252,7 +261,7 @@ lua_State *lua_init_and_load(const char *filename)
     lua_State *L = luaL_newstate();
     if (!L)
     {
-        fprintf(stderr, "failed to create lua state\n");
+        SDL_Log("failed to create lua state\n");
         return NULL;
     }
 
@@ -266,14 +275,14 @@ lua_State *lua_init_and_load(const char *filename)
     /* load file */
     if (luaL_loadfile(L, filename) != LUA_OK)
     {
-        fprintf(stderr, "lua load error: %s\n", lua_tostring(L, -1));
+        SDL_Log("lua load error: %s\n", lua_tostring(L, -1));
         lua_close(L);
         return NULL;
     }
 
     if (lua_pcall(L, 0, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "lua runtime error: %s\n", lua_tostring(L, -1));
+        SDL_Log("lua runtime error: %s\n", lua_tostring(L, -1));
         lua_close(L);
         return NULL;
     }
@@ -282,7 +291,7 @@ lua_State *lua_init_and_load(const char *filename)
     lua_getglobal(L, "draw");
     if (!lua_isfunction(L, -1))
     {
-        fprintf(stderr, "error: script must define draw(t)\n");
+        SDL_Log("error: script must define draw(t)\n");
         lua_close(L);
         return NULL;
     }
@@ -294,23 +303,59 @@ lua_State *lua_init_and_load(const char *filename)
 void gfxlc_shutdown(gfxlc_t *gfxlc)
 {
     lua_close(gfxlc->L);
+
     SDL_DestroyTexture(gfxlc->texture);
     SDL_DestroyRenderer(gfxlc->renderer);
     SDL_DestroyWindow(gfxlc->window);
+
+    if (gfxlc->font)
+    {
+        TTF_CloseFont(gfxlc->font);
+    }
+    TTF_Quit();
+
     SDL_Quit();
+}
+
+int load_fonts(gfxlc_t *gfxlc)
+{
+    if (!TTF_Init())
+    {
+        SDL_Log("Couldn't initialize SDL_ttf: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    char *base_path = SDL_GetBasePath();
+    if (base_path)
+    {
+        char font_path[1024];
+
+        SDL_snprintf(font_path, sizeof(font_path), "%s/SourceCodePro-Regular.ttf", base_path);
+
+        // Load a font
+        gfxlc->font = TTF_OpenFont(font_path, 24.0f);
+        if (gfxlc->font == NULL)
+        {
+            SDL_Log("Failed to load font: %s", SDL_GetError());
+            return -1;
+        }
+        SDL_Log("Loading font from: %s\n", font_path);
+        SDL_free(base_path);
+        return 0;
+    }
 }
 
 void lua_load_file(lua_State *L, const char *filename)
 {
     if (luaL_loadfile(L, filename) != LUA_OK)
     {
-        fprintf(stderr, "lua load error: %s\n", lua_tostring(L, -1));
+        SDL_Log("lua load error: %s\n", lua_tostring(L, -1));
         return;
     }
 
     if (lua_pcall(L, 0, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "lua runtime error: %s\n", lua_tostring(L, -1));
+        SDL_Log("lua runtime error: %s\n", lua_tostring(L, -1));
         return;
     }
 
@@ -318,7 +363,7 @@ void lua_load_file(lua_State *L, const char *filename)
     lua_getglobal(L, "draw");
     if (!lua_isfunction(L, -1))
     {
-        fprintf(stderr, "error: script must define draw(t)\n");
+        SDL_Log("error: script must define draw(t)\n");
         lua_close(L);
         return;
     }
@@ -332,7 +377,7 @@ int lua_call_draw(lua_State *L, double t)
 
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "lua draw error: %s\n", lua_tostring(L, -1));
+        SDL_Log("lua draw error: %s\n", lua_tostring(L, -1));
         return 0;
     }
 
