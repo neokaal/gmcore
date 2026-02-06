@@ -6,13 +6,13 @@ function rect(x, y, w, h)
     end
 end
 
+local time = 0
 function draw(dt)
-    -- rectangle dimensions are rw X rh
+    time = time + dt
     local rw = 100
     local rh = 100
-    -- rectangle position is in the center of the screen
-    -- therefore its top-left is
-    local x = width / 2 - rw / 2 + math.floor(math.sin(t) * 150)
+    -- position of the rectangle is in the center of the screen, but it moves left and right over time
+    local x = width / 2 - rw / 2 + math.floor(math.sin(time / 1000) * 150)
     local y = height / 2 - rh / 2
 
     bg(0, 0, 0)

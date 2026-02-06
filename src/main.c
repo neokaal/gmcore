@@ -256,11 +256,12 @@ int gfxlc_draw(gfxlc_t *gfxlc)
 
         // update
         uint64_t now = SDL_GetTicks();
-        double dt = (now - prev) / 1000.0;
+        float dt = (now - prev);
         if (!lua_call_draw(gfxlc->L, dt))
         {
             break;
         }
+        prev = now;
 
         // draw
         SDL_UpdateTexture(
