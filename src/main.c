@@ -13,6 +13,41 @@
 #define GFX_W 800
 #define GFX_H 600
 
+typedef struct
+{
+    // Lua state and script info
+    lua_State *L;
+    char *lua_file;
+    time_t lua_last_mtime;
+
+    // SDL window, renderer, and texture
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
+
+    // game loop
+    int quit;
+    SDL_Event evt;
+    uint64_t start_ticks;
+
+    // canvas pixel buffer
+    uint32_t *pixels;
+
+    // canvas dimensions
+    int cvs_width;
+    int cvs_height;
+
+    // window dimensions
+    int win_width;
+    int win_height;
+} gfxlc_t;
+
+int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file);
+
+int gfxlc_draw(gfxlc_t *gfxlc);
+
+void gfxlc_shutdown(gfxlc_t *gfxlc);
+
 lua_State *lua_init_and_load(const char *filename);
 
 void lua_load_file(lua_State *L, const char *filename);
@@ -43,22 +78,52 @@ int main(int argc, char *argv[])
         return 1;
     }
     char *lua_file = argv[1];
-    lua_State *L = lua_init_and_load(lua_file);
-    if (!L)
+    gfxlc_t *gfxctx;
+    gfxctx = (gfxlc_t *)calloc(sizeof(gfxlc_t), 1);
+    if (gfxctx == NULL)
+    {
+        printf("Unable to allocate memory.\n");
+        return -1;
+    }
+
+    gfxlc_init(gfxctx, lua_file);
+    gfxlc_draw(gfxctx);
+    gfxlc_shutdown(gfxctx);
+
+    free(gfxctx);
+
+    // cleanup
+    return 0;
+}
+
+int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
+{
+    memset(gfxlc, 0, sizeof(gfxlc_t));
+    if (lua_file == NULL)
+    {
+        gfxlc->lua_file = NULL;
+    }
+    else
+    {
+        gfxlc->lua_file = strdup(lua_file);
+    }
+
+    gfxlc->L = lua_init_and_load(gfxlc->lua_file);
+
+    if (!gfxlc->L)
     {
         return 1;
     }
 
-    static time_t lua_last_mtime = 0;
-    lua_last_mtime = get_file_mtime(lua_file);
+    gfxlc->lua_last_mtime = get_file_mtime(gfxlc->lua_file);
 
-    lua_pushcfunction(L, lua_set_pixel);
-    lua_setglobal(L, "px");
-    lua_pushcfunction(L, lua_width);
-    lua_setglobal(L, "width");
+    lua_pushcfunction(gfxlc->L, lua_set_pixel);
+    lua_setglobal(gfxlc->L, "px");
+    lua_pushcfunction(gfxlc->L, lua_width);
+    lua_setglobal(gfxlc->L, "width");
 
-    lua_pushcfunction(L, lua_height);
-    lua_setglobal(L, "height");
+    lua_pushcfunction(gfxlc->L, lua_height);
+    lua_setglobal(gfxlc->L, "height");
 
     // dimensions of the window
     const int SCREEN_WIDTH = GFX_W;
@@ -73,77 +138,76 @@ int main(int argc, char *argv[])
     printf("SDL Init succeeded.\n");
 
     // create a window with the given dimensions and title
-    SDL_Window *window = SDL_CreateWindow("gfxlc",
-                                          SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-    if (window == NULL)
+    gfxlc->window = SDL_CreateWindow("gfxlc",
+                                     SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+    if (gfxlc->window == NULL)
     {
         printf("Could not get window... %s\n", SDL_GetError());
         SDL_Quit();
         return 2;
     }
 
-    // texture related stuff
-    uint32_t *pixels;
-    SDL_Texture *texture;
-    SDL_Renderer *renderer;
-
-    pixels = malloc(GFX_W * GFX_H * sizeof(uint32_t));
-    if (!pixels)
+    gfxlc->pixels = malloc(GFX_W * GFX_H * sizeof(uint32_t));
+    if (!gfxlc->pixels)
     {
         fprintf(stderr, "out of memory\n");
         exit(1);
     }
-    memset(pixels, 0, GFX_W * GFX_H * sizeof(uint32_t));
+    memset(gfxlc->pixels, 0, GFX_W * GFX_H * sizeof(uint32_t));
 
-    lua_pushlightuserdata(L, pixels);
-    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_pixels");
+    lua_pushlightuserdata(gfxlc->L, gfxlc->pixels);
+    lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_pixels");
 
-    lua_pushinteger(L, GFX_W);
-    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_width");
+    lua_pushinteger(gfxlc->L, GFX_W);
+    lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_width");
 
-    lua_pushinteger(L, GFX_H);
-    lua_setfield(L, LUA_REGISTRYINDEX, "gfx_height");
+    lua_pushinteger(gfxlc->L, GFX_H);
+    lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_height");
 
     // create renderer
-    renderer = SDL_CreateRenderer(window, NULL);
-    if (!renderer)
+    gfxlc->renderer = SDL_CreateRenderer(gfxlc->window, NULL);
+    if (!gfxlc->renderer)
     {
         fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
         exit(1);
     }
 
     // create the texture
-    texture = SDL_CreateTexture(
-        renderer,
+    gfxlc->texture = SDL_CreateTexture(
+        gfxlc->renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_STREAMING,
         GFX_W,
         GFX_H);
 
-    if (!texture)
+    if (!gfxlc->texture)
     {
         fprintf(stderr, "failed to create texture: %s\n", SDL_GetError());
         exit(1);
     }
 
-    // application/game loop
-    int quit = 0;
-    SDL_Event evt;
-    uint64_t start_ticks = SDL_GetTicks();
+    // init game loop vars
+    gfxlc->quit = 0;
+    gfxlc->start_ticks = SDL_GetTicks();
 
-    while (quit == 0)
+    return 0;
+}
+
+int gfxlc_draw(gfxlc_t *gfxlc)
+{
+    while (gfxlc->quit == 0)
     {
         // hot-reload lua script if modified
-        time_t mtime = get_file_mtime(lua_file);
-        if (mtime != 0 && mtime != lua_last_mtime)
+        time_t mtime = get_file_mtime(gfxlc->lua_file);
+        if (mtime != 0 && mtime != gfxlc->lua_last_mtime)
         {
-            printf("reloading %s\n", lua_file);
+            printf("reloading %s\n", gfxlc->lua_file);
 
-            lua_last_mtime = mtime;
+            gfxlc->lua_last_mtime = mtime;
 
-            lua_load_file(L, lua_file);
+            lua_load_file(gfxlc->L, gfxlc->lua_file);
 
-            if (!L)
+            if (!gfxlc->L)
             {
                 break; /* hard failure */
             }
@@ -151,38 +215,33 @@ int main(int argc, char *argv[])
 
         // update
         uint64_t now = SDL_GetTicks();
-        double t = (now - start_ticks) / 1000.0;
-        if (!lua_call_frame(L, t))
+        double t = (now - gfxlc->start_ticks) / 1000.0;
+        if (!lua_call_frame(gfxlc->L, t))
         {
             break;
         }
 
         // draw
         SDL_UpdateTexture(
-            texture,
+            gfxlc->texture,
             NULL,
-            pixels,
+            gfxlc->pixels,
             GFX_W * sizeof(uint32_t));
 
-        SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+        SDL_RenderClear(gfxlc->renderer);
+        SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, NULL);
+        SDL_RenderPresent(gfxlc->renderer);
 
         // handle messages/events
 
-        while (SDL_PollEvent(&evt))
+        while (SDL_PollEvent(&gfxlc->evt))
         {
-            if (evt.type == SDL_EVENT_QUIT)
+            if (gfxlc->evt.type == SDL_EVENT_QUIT)
             {
-                quit = 1;
+                gfxlc->quit = 1;
             }
         }
     }
-
-    // cleanup
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
     return 0;
 }
 
@@ -228,6 +287,13 @@ lua_State *lua_init_and_load(const char *filename)
     lua_pop(L, 1);
 
     return L;
+}
+
+void gfxlc_shutdown(gfxlc_t *gfxlc)
+{
+    // TODO: add lua cleanup
+    SDL_DestroyWindow(gfxlc->window);
+    SDL_Quit();
 }
 
 void lua_load_file(lua_State *L, const char *filename)
