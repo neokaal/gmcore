@@ -5,12 +5,29 @@
       "name": "default",
       "inherits": "vcpkg",
       "environment": {}
+    },
+    {
+      "name": "macos-system",
+      "displayName": "macOS System Libraries",
+      "description": "Configure using system-installed libraries (e.g., Homebrew) and clang/clang++ compilers",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/usr/local"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "default",
       "configurePreset": "default"
+    },
+    {
+      "name": "macos-system",
+      "configurePreset": "macos-system"
     }
   ]
 }

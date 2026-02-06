@@ -1,7 +1,14 @@
 # Makefile: helper targets to orchestrate CMake builds using CMakePresets.json
 # Use: `make configure`, `make build`, `make run`, `make clean`, `make distclean`.
 
-PRESET ?= default
+# Detect OS
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    PRESET ?= macos-system
+else
+    PRESET ?= default
+endif
+
 BUILD_DIR ?= build
 CMAKE ?= cmake
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
