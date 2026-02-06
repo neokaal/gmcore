@@ -9,7 +9,7 @@
       "defines": ["_DEBUG", "UNICODE", "_UNICODE"],
       "windowsSdkVersion": "10.0.26100.0",
       "compilerPath": "D:/LLVM/bin/clang.exe",
-      "cStandard": "c17",
+      "cStandard": "c11",
       "cppStandard": "c++17",
       "intelliSenseMode": "windows-clang-x64"
     }
