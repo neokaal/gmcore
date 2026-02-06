@@ -19,6 +19,10 @@ build: configure
 	@echo "Building (jobs=$(JOBS))..."
 	@$(CMAKE) --build $(BUILD_DIR) --preset $(PRESET) -- -j $(JOBS)
 
+rebuild:
+	@echo "Building (jobs=$(JOBS))..."
+	@$(CMAKE) --build $(BUILD_DIR) --preset $(PRESET) -- -j $(JOBS)
+
 install: build
 	@echo "Installing to $(BUILD_DIR)/install..."
 	@$(CMAKE) --install $(BUILD_DIR) --prefix $(BUILD_DIR)/install
