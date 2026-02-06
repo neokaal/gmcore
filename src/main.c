@@ -1,6 +1,9 @@
 // minimal SDL3 program
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <time.h>
+
 #include <SDL3/SDL.h>
 
 #include <lua.h>
@@ -12,6 +15,8 @@
 
 lua_State *lua_init_and_load(const char *filename);
 
+void lua_load_file(lua_State *L, const char *filename);
+
 int lua_call_frame(lua_State *L, double t);
 
 static uint32_t *get_pixels(lua_State *L);
@@ -22,6 +27,14 @@ static int lua_width(lua_State *L);
 
 static int lua_height(lua_State *L);
 
+static time_t get_file_mtime(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    return st.st_mtime;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -29,12 +42,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "usage: %s script.lua\n", argv[0]);
         return 1;
     }
-
-    lua_State *L = lua_init_and_load(argv[1]);
+    char *lua_file = argv[1];
+    lua_State *L = lua_init_and_load(lua_file);
     if (!L)
     {
         return 1;
     }
+
+    static time_t lua_last_mtime = 0;
+    lua_last_mtime = get_file_mtime(lua_file);
 
     lua_pushcfunction(L, lua_set_pixel);
     lua_setglobal(L, "px");
@@ -117,6 +133,22 @@ int main(int argc, char *argv[])
 
     while (quit == 0)
     {
+        // hot-reload lua script if modified
+        time_t mtime = get_file_mtime(lua_file);
+        if (mtime != 0 && mtime != lua_last_mtime)
+        {
+            printf("reloading %s\n", lua_file);
+
+            lua_last_mtime = mtime;
+
+            lua_load_file(L, lua_file);
+
+            if (!L)
+            {
+                break; /* hard failure */
+            }
+        }
+
         // update
         uint64_t now = SDL_GetTicks();
         double t = (now - start_ticks) / 1000.0;
@@ -196,6 +228,31 @@ lua_State *lua_init_and_load(const char *filename)
     lua_pop(L, 1);
 
     return L;
+}
+
+void lua_load_file(lua_State *L, const char *filename)
+{
+    if (luaL_loadfile(L, filename) != LUA_OK)
+    {
+        fprintf(stderr, "lua load error: %s\n", lua_tostring(L, -1));
+        return;
+    }
+
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    {
+        fprintf(stderr, "lua runtime error: %s\n", lua_tostring(L, -1));
+        return;
+    }
+
+    /* verify frame() */
+    lua_getglobal(L, "frame");
+    if (!lua_isfunction(L, -1))
+    {
+        fprintf(stderr, "error: script must define frame(t)\n");
+        lua_close(L);
+        return;
+    }
+    lua_pop(L, 1);
 }
 
 int lua_call_frame(lua_State *L, double t)
