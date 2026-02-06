@@ -58,10 +58,6 @@ static uint32_t *get_pixels(lua_State *L);
 
 static int lua_set_pixel(lua_State *L);
 
-static int lua_width(lua_State *L);
-
-static int lua_height(lua_State *L);
-
 static time_t get_file_mtime(const char *path)
 {
     struct stat st;
@@ -119,15 +115,21 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
 
     lua_pushcfunction(gfxlc->L, lua_set_pixel);
     lua_setglobal(gfxlc->L, "px");
-    lua_pushcfunction(gfxlc->L, lua_width);
-    lua_setglobal(gfxlc->L, "width");
 
-    lua_pushcfunction(gfxlc->L, lua_height);
-    lua_setglobal(gfxlc->L, "height");
+    // dimensions of the canvas
+    gfxlc->cvs_width = GFX_W;
+    gfxlc->cvs_height = GFX_H;
 
     // dimensions of the window
-    const int SCREEN_WIDTH = GFX_W;
-    const int SCREEN_HEIGHT = GFX_H;
+    gfxlc->win_width = GFX_W;
+    gfxlc->win_height = GFX_H;
+
+    // set values width and height in the global namespace
+    // width and height are dimensions of the canvas, not the window
+    lua_pushinteger(gfxlc->L, gfxlc->cvs_width);
+    lua_setglobal(gfxlc->L, "width");
+    lua_pushinteger(gfxlc->L, gfxlc->cvs_height);
+    lua_setglobal(gfxlc->L, "height");
 
     // initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -139,7 +141,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
 
     // create a window with the given dimensions and title
     gfxlc->window = SDL_CreateWindow("gfxlc",
-                                     SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+                                     gfxlc->win_width, gfxlc->win_height, 0);
     if (gfxlc->window == NULL)
     {
         printf("Could not get window... %s\n", SDL_GetError());
@@ -147,21 +149,21 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         return 2;
     }
 
-    gfxlc->pixels = malloc(GFX_W * GFX_H * sizeof(uint32_t));
+    gfxlc->pixels = malloc(gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
     if (!gfxlc->pixels)
     {
         fprintf(stderr, "out of memory\n");
         exit(1);
     }
-    memset(gfxlc->pixels, 0, GFX_W * GFX_H * sizeof(uint32_t));
+    memset(gfxlc->pixels, 0, gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
 
     lua_pushlightuserdata(gfxlc->L, gfxlc->pixels);
     lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_pixels");
 
-    lua_pushinteger(gfxlc->L, GFX_W);
+    lua_pushinteger(gfxlc->L, gfxlc->cvs_width);
     lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_width");
 
-    lua_pushinteger(gfxlc->L, GFX_H);
+    lua_pushinteger(gfxlc->L, gfxlc->cvs_height);
     lua_setfield(gfxlc->L, LUA_REGISTRYINDEX, "gfx_height");
 
     // create renderer
@@ -177,8 +179,8 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         gfxlc->renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_STREAMING,
-        GFX_W,
-        GFX_H);
+        gfxlc->cvs_width,
+        gfxlc->cvs_height);
 
     if (!gfxlc->texture)
     {
@@ -352,6 +354,13 @@ static int lua_set_pixel(lua_State *L)
     {
         return 0;
     }
+    // get the global width and height of the canvas
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_width");
+    int w = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop width
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_height");
+    int h = luaL_checkinteger(L, -1);
+    lua_pop(L, 1); // pop height
 
     int x = luaL_checkinteger(L, 1);
     int y = luaL_checkinteger(L, 2);
@@ -365,25 +374,13 @@ static int lua_set_pixel(lua_State *L)
         a = luaL_checkinteger(L, 6);
     }
 
-    if (x < 0 || x >= GFX_W || y < 0 || y >= GFX_H)
+    if (x < 0 || x >= w || y < 0 || y >= h)
     {
         return 0;
     }
 
-    pixels[y * GFX_W + x] =
+    pixels[y * w + x] =
         (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
 
     return 0;
-}
-
-static int lua_width(lua_State *L)
-{
-    lua_pushinteger(L, GFX_W);
-    return 1;
-}
-
-static int lua_height(lua_State *L)
-{
-    lua_pushinteger(L, GFX_H);
-    return 1;
 }
