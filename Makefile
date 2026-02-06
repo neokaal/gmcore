@@ -1,7 +1,7 @@
 # Makefile: helper targets to orchestrate CMake builds using CMakePresets.json
 # Use: `make configure`, `make build`, `make run`, `make clean`, `make distclean`.
 
-PRESET ?= clang-ninja
+PRESET ?= default
 BUILD_DIR ?= build
 CMAKE ?= cmake
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)

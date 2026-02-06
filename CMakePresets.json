@@ -1,27 +1,18 @@
 {
-  "version": 3,
+  "version": 2,
   "configurePresets": [
     {
-      "name": "clang-ninja",
-      "displayName": "Clang + Ninja",
+      "name": "vcpkg",
+      "displayName": "Vcpkg + Clang + Ninja",
       "description": "Configure using Ninja generator and clang/clang++ compilers",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_BUILD_TYPE": "Release"
-      },
-      "environment": {}
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "clang-ninja",
-      "displayName": "Clang + Ninja (build)",
-      "description": "Build using Ninja in ${sourceDir}/build (uses configure preset 'clang-ninja')",
-      "configurePreset": "clang-ninja",
-      "jobs": 4
+      }
     }
   ]
 }
