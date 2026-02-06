@@ -52,7 +52,7 @@ lua_State *lua_init_and_load(const char *filename);
 
 void lua_load_file(lua_State *L, const char *filename);
 
-int lua_call_frame(lua_State *L, double t);
+int lua_call_draw(lua_State *L, double t);
 
 static uint32_t *get_pixels(lua_State *L);
 
@@ -218,7 +218,7 @@ int gfxlc_draw(gfxlc_t *gfxlc)
         // update
         uint64_t now = SDL_GetTicks();
         double t = (now - gfxlc->start_ticks) / 1000.0;
-        if (!lua_call_frame(gfxlc->L, t))
+        if (!lua_call_draw(gfxlc->L, t))
         {
             break;
         }
@@ -278,11 +278,11 @@ lua_State *lua_init_and_load(const char *filename)
         return NULL;
     }
 
-    /* verify frame() */
-    lua_getglobal(L, "frame");
+    /* verify draw() */
+    lua_getglobal(L, "draw");
     if (!lua_isfunction(L, -1))
     {
-        fprintf(stderr, "error: script must define frame(t)\n");
+        fprintf(stderr, "error: script must define draw(t)\n");
         lua_close(L);
         return NULL;
     }
@@ -314,25 +314,25 @@ void lua_load_file(lua_State *L, const char *filename)
         return;
     }
 
-    /* verify frame() */
-    lua_getglobal(L, "frame");
+    /* verify draw() */
+    lua_getglobal(L, "draw");
     if (!lua_isfunction(L, -1))
     {
-        fprintf(stderr, "error: script must define frame(t)\n");
+        fprintf(stderr, "error: script must define draw(t)\n");
         lua_close(L);
         return;
     }
     lua_pop(L, 1);
 }
 
-int lua_call_frame(lua_State *L, double t)
+int lua_call_draw(lua_State *L, double t)
 {
-    lua_getglobal(L, "frame");
+    lua_getglobal(L, "draw");
     lua_pushnumber(L, t);
 
     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
     {
-        fprintf(stderr, "lua frame error: %s\n", lua_tostring(L, -1));
+        fprintf(stderr, "lua draw error: %s\n", lua_tostring(L, -1));
         return 0;
     }
 

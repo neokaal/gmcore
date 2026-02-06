@@ -1,6 +1,3 @@
-function frame(t)
-    local w = width
-    local h = height
-
-    px(w / 2, h / 2, 255, 0, 0)
+function draw(t)
+    px(width / 2, height / 2, 255, 0, 0)
 end
