@@ -18,14 +18,14 @@
 #define GFX_W 400
 #define GFX_H 360 - SB_H
 
-#define GFXLC_CANVAS_MT "gfxlc.canvas"
+#define GFXLC_GAME_MT "gfxlc.gm"
 
 typedef struct
 {
     uint32_t *pixels;
     int w;
     int h;
-} lua_canvas_t;
+} lua_game_t;
 
 typedef struct
 {
@@ -77,11 +77,11 @@ void draw_fps(gfxlc_t *gfxlc);
 void lua_load_file(lua_State *L, const char *filename);
 int lua_call_draw(lua_State *L, float t);
 static inline uint32_t pack_rgba(int r, int g, int b, int a);
-static lua_canvas_t *check_canvas(lua_State *L);
-static int lua_canvas_clear(lua_State *L);
-static int lua_canvas_set_pixel(lua_State *L);
-static int lua_canvas_fill_rect(lua_State *L);
-static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc);
+static lua_game_t *check_game(lua_State *L);
+static int lua_game_clear(lua_State *L);
+static int lua_game_set_pixel(lua_State *L);
+static int lua_game_fill_rect(lua_State *L);
+static int register_game_api(lua_State *L, gfxlc_t *gfxlc);
 static time_t get_file_mtime(const char *path);
 
 int main(int argc, char *argv[])
@@ -145,8 +145,8 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     {
         return 1;
     }
-    // register canvas API and load the initial script
-    register_canvas_api(gfxlc->L, gfxlc);
+    // register game API and load the initial script
+    register_game_api(gfxlc->L, gfxlc);
     // load the initial script (if any)
     lua_load_file(gfxlc->L, gfxlc->lua_file);
 
@@ -330,7 +330,7 @@ int load_fonts(gfxlc_t *gfxlc)
 
         SDL_snprintf(font_path, sizeof(font_path), "%s/SourceCodePro-Regular.ttf", base_path);
 
-        gfxlc->font = TTF_OpenFont(font_path, 16.0f);
+        gfxlc->font = TTF_OpenFont(font_path, 10.0f);
         if (gfxlc->font == NULL)
         {
             SDL_Log("Failed to load font: %s", SDL_GetError());
@@ -446,14 +446,14 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-static lua_canvas_t *check_canvas(lua_State *L)
+static lua_game_t *check_game(lua_State *L)
 {
-    return (lua_canvas_t *)luaL_checkudata(L, 1, GFXLC_CANVAS_MT);
+    return (lua_game_t *)luaL_checkudata(L, 1, GFXLC_GAME_MT);
 }
 
-static int lua_canvas_clear(lua_State *L)
+static int lua_game_clear(lua_State *L)
 {
-    lua_canvas_t *canvas = check_canvas(L);
+    lua_game_t *game = check_game(L);
     int r = luaL_checkinteger(L, 2);
     int g = luaL_checkinteger(L, 3);
     int b = luaL_checkinteger(L, 4);
@@ -464,18 +464,18 @@ static int lua_canvas_clear(lua_State *L)
     }
 
     uint32_t color = pack_rgba(r, g, b, a);
-    int count = canvas->w * canvas->h;
+    int count = game->w * game->h;
     for (int i = 0; i < count; ++i)
     {
-        canvas->pixels[i] = color;
+        game->pixels[i] = color;
     }
 
     return 0;
 }
 
-static int lua_canvas_set_pixel(lua_State *L)
+static int lua_game_set_pixel(lua_State *L)
 {
-    lua_canvas_t *canvas = check_canvas(L);
+    lua_game_t *game = check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int r = luaL_checkinteger(L, 4);
@@ -487,18 +487,18 @@ static int lua_canvas_set_pixel(lua_State *L)
         a = luaL_checkinteger(L, 7);
     }
 
-    if (x < 0 || x >= canvas->w || y < 0 || y >= canvas->h)
+    if (x < 0 || x >= game->w || y < 0 || y >= game->h)
     {
         return 0;
     }
 
-    canvas->pixels[y * canvas->w + x] = pack_rgba(r, g, b, a);
+    game->pixels[y * game->w + x] = pack_rgba(r, g, b, a);
     return 0;
 }
 
-static int lua_canvas_fill_rect(lua_State *L)
+static int lua_game_fill_rect(lua_State *L)
 {
-    lua_canvas_t *canvas = check_canvas(L);
+    lua_game_t *game = check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int w = luaL_checkinteger(L, 4);
@@ -530,13 +530,13 @@ static int lua_canvas_fill_rect(lua_State *L)
     {
         y0 = 0;
     }
-    if (x1 > canvas->w)
+    if (x1 > game->w)
     {
-        x1 = canvas->w;
+        x1 = game->w;
     }
-    if (y1 > canvas->h)
+    if (y1 > game->h)
     {
-        y1 = canvas->h;
+        y1 = game->h;
     }
 
     if (x0 >= x1 || y0 >= y1)
@@ -547,7 +547,7 @@ static int lua_canvas_fill_rect(lua_State *L)
     uint32_t color = pack_rgba(r, g, b, a);
     for (int row = y0; row < y1; ++row)
     {
-        uint32_t *dst = canvas->pixels + row * canvas->w + x0;
+        uint32_t *dst = game->pixels + row * game->w + x0;
         for (int col = x0; col < x1; ++col)
         {
             *dst++ = color;
@@ -557,16 +557,16 @@ static int lua_canvas_fill_rect(lua_State *L)
     return 0;
 }
 
-static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc)
+static int register_game_api(lua_State *L, gfxlc_t *gfxlc)
 {
-    luaL_newmetatable(L, GFXLC_CANVAS_MT);
+    luaL_newmetatable(L, GFXLC_GAME_MT);
 
     lua_newtable(L);
-    lua_pushcfunction(L, lua_canvas_clear);
+    lua_pushcfunction(L, lua_game_clear);
     lua_setfield(L, -2, "clear");
-    lua_pushcfunction(L, lua_canvas_fill_rect);
+    lua_pushcfunction(L, lua_game_fill_rect);
     lua_setfield(L, -2, "fill_rect");
-    lua_pushcfunction(L, lua_canvas_set_pixel);
+    lua_pushcfunction(L, lua_game_set_pixel);
     lua_setfield(L, -2, "set_pixel");
     lua_pushinteger(L, gfxlc->cvs_width);
     lua_setfield(L, -2, "width");
@@ -576,14 +576,14 @@ static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc)
 
     lua_pop(L, 1);
 
-    lua_canvas_t *canvas = (lua_canvas_t *)lua_newuserdata(L, sizeof(lua_canvas_t));
+    lua_game_t *canvas = (lua_game_t *)lua_newuserdata(L, sizeof(lua_game_t));
     canvas->pixels = gfxlc->pixels;
     canvas->w = gfxlc->cvs_width;
     canvas->h = gfxlc->cvs_height;
 
-    luaL_getmetatable(L, GFXLC_CANVAS_MT);
+    luaL_getmetatable(L, GFXLC_GAME_MT);
     lua_setmetatable(L, -2);
-    lua_setglobal(L, "canvas");
+    lua_setglobal(L, "gm");
 
     return 0;
 }
