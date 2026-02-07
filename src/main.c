@@ -76,170 +76,19 @@ void init_fps_texture(gfxlc_t *gfxlc);
 void draw_fps(gfxlc_t *gfxlc);
 void lua_load_file(lua_State *L, const char *filename);
 int lua_call_draw(lua_State *L, float t);
-
+static inline uint32_t pack_rgba(int r, int g, int b, int a);
+static lua_canvas_t *check_canvas(lua_State *L);
+static int lua_canvas_clear(lua_State *L);
+static int lua_canvas_set_pixel(lua_State *L);
+static int lua_canvas_fill_rect(lua_State *L);
 static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc);
-
-static time_t get_file_mtime(const char *path)
-{
-    struct stat st;
-    if (stat(path, &st) != 0)
-    {
-        return 0;
-    }
-    return st.st_mtime;
-}
-
-static inline uint32_t pack_rgba(int r, int g, int b, int a)
-{
-    return ((uint32_t)(r & 0xFF) << 24) |
-           ((uint32_t)(g & 0xFF) << 16) |
-           ((uint32_t)(b & 0xFF) << 8) |
-           (uint32_t)(a & 0xFF);
-}
-
-static lua_canvas_t *check_canvas(lua_State *L)
-{
-    return (lua_canvas_t *)luaL_checkudata(L, 1, GFXLC_CANVAS_MT);
-}
-
-static int lua_canvas_clear(lua_State *L)
-{
-    lua_canvas_t *canvas = check_canvas(L);
-    int r = luaL_checkinteger(L, 2);
-    int g = luaL_checkinteger(L, 3);
-    int b = luaL_checkinteger(L, 4);
-    int a = 255;
-    if (lua_gettop(L) >= 5)
-    {
-        a = luaL_checkinteger(L, 5);
-    }
-
-    uint32_t color = pack_rgba(r, g, b, a);
-    int count = canvas->w * canvas->h;
-    for (int i = 0; i < count; ++i)
-    {
-        canvas->pixels[i] = color;
-    }
-
-    return 0;
-}
-
-static int lua_canvas_set_pixel(lua_State *L)
-{
-    lua_canvas_t *canvas = check_canvas(L);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int r = luaL_checkinteger(L, 4);
-    int g = luaL_checkinteger(L, 5);
-    int b = luaL_checkinteger(L, 6);
-    int a = 255;
-    if (lua_gettop(L) >= 7)
-    {
-        a = luaL_checkinteger(L, 7);
-    }
-
-    if (x < 0 || x >= canvas->w || y < 0 || y >= canvas->h)
-    {
-        return 0;
-    }
-
-    canvas->pixels[y * canvas->w + x] = pack_rgba(r, g, b, a);
-    return 0;
-}
-
-static int lua_canvas_fill_rect(lua_State *L)
-{
-    lua_canvas_t *canvas = check_canvas(L);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int w = luaL_checkinteger(L, 4);
-    int h = luaL_checkinteger(L, 5);
-    int r = luaL_checkinteger(L, 6);
-    int g = luaL_checkinteger(L, 7);
-    int b = luaL_checkinteger(L, 8);
-    int a = 255;
-    if (lua_gettop(L) >= 9)
-    {
-        a = luaL_checkinteger(L, 9);
-    }
-
-    if (w <= 0 || h <= 0)
-    {
-        return 0;
-    }
-
-    int x0 = x;
-    int y0 = y;
-    int x1 = x + w;
-    int y1 = y + h;
-
-    if (x0 < 0)
-    {
-        x0 = 0;
-    }
-    if (y0 < 0)
-    {
-        y0 = 0;
-    }
-    if (x1 > canvas->w)
-    {
-        x1 = canvas->w;
-    }
-    if (y1 > canvas->h)
-    {
-        y1 = canvas->h;
-    }
-
-    if (x0 >= x1 || y0 >= y1)
-    {
-        return 0;
-    }
-
-    uint32_t color = pack_rgba(r, g, b, a);
-    for (int row = y0; row < y1; ++row)
-    {
-        uint32_t *dst = canvas->pixels + row * canvas->w + x0;
-        for (int col = x0; col < x1; ++col)
-        {
-            *dst++ = color;
-        }
-    }
-
-    return 0;
-}
-
-static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc)
-{
-    luaL_newmetatable(L, GFXLC_CANVAS_MT);
-
-    lua_newtable(L);
-    lua_pushcfunction(L, lua_canvas_clear);
-    lua_setfield(L, -2, "clear");
-    lua_pushcfunction(L, lua_canvas_fill_rect);
-    lua_setfield(L, -2, "fill_rect");
-    lua_pushcfunction(L, lua_canvas_set_pixel);
-    lua_setfield(L, -2, "set_pixel");
-    lua_setfield(L, -2, "__index");
-
-    lua_pop(L, 1);
-
-    lua_canvas_t *canvas = (lua_canvas_t *)lua_newuserdata(L, sizeof(lua_canvas_t));
-    canvas->pixels = gfxlc->pixels;
-    canvas->w = gfxlc->cvs_width;
-    canvas->h = gfxlc->cvs_height;
-
-    luaL_getmetatable(L, GFXLC_CANVAS_MT);
-    lua_setmetatable(L, -2);
-    lua_setglobal(L, "canvas");
-
-    return 0;
-}
+static time_t get_file_mtime(const char *path);
 
 int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        fprintf(stderr, "usage: %s script.lua\n", argv[0]);
+        SDL_Log("usage: %s script.lua\n", argv[0]);
         return 1;
     }
 
@@ -286,7 +135,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     gfxlc->pixels = malloc(gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
     if (!gfxlc->pixels)
     {
-        fprintf(stderr, "out of memory\n");
+        SDL_Log("out of memory\n");
         exit(1);
     }
     memset(gfxlc->pixels, 0, gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
@@ -309,10 +158,10 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     // initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        printf("SDL Init failed.\n");
+        SDL_Log("SDL Init failed.\n");
         return 1;
     }
-    printf("SDL Init succeeded.\n");
+    SDL_Log("SDL Init succeeded.\n");
 
     SDL_srand((unsigned int)time(NULL));
 
@@ -320,7 +169,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     gfxlc->window = SDL_CreateWindow("gfxlc", gfxlc->win_width, gfxlc->win_height, 0);
     if (gfxlc->window == NULL)
     {
-        printf("Could not get window... %s\n", SDL_GetError());
+        SDL_Log("Could not get window... %s\n", SDL_GetError());
         SDL_Quit();
         return 2;
     }
@@ -332,7 +181,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     gfxlc->renderer = SDL_CreateRenderer(gfxlc->window, NULL);
     if (!gfxlc->renderer)
     {
-        fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_Log("SDL_CreateRenderer failed: %s\n", SDL_GetError());
         exit(1);
     }
 
@@ -346,7 +195,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
 
     if (!gfxlc->texture)
     {
-        fprintf(stderr, "failed to create texture: %s\n", SDL_GetError());
+        SDL_Log("failed to create texture: %s\n", SDL_GetError());
         exit(1);
     }
 
@@ -605,4 +454,160 @@ int lua_call_draw(lua_State *L, float dt)
     }
 
     return 1;
+}
+
+static time_t get_file_mtime(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) != 0)
+    {
+        return 0;
+    }
+    return st.st_mtime;
+}
+
+static inline uint32_t pack_rgba(int r, int g, int b, int a)
+{
+    return ((uint32_t)(r & 0xFF) << 24) |
+           ((uint32_t)(g & 0xFF) << 16) |
+           ((uint32_t)(b & 0xFF) << 8) |
+           (uint32_t)(a & 0xFF);
+}
+
+static lua_canvas_t *check_canvas(lua_State *L)
+{
+    return (lua_canvas_t *)luaL_checkudata(L, 1, GFXLC_CANVAS_MT);
+}
+
+static int lua_canvas_clear(lua_State *L)
+{
+    lua_canvas_t *canvas = check_canvas(L);
+    int r = luaL_checkinteger(L, 2);
+    int g = luaL_checkinteger(L, 3);
+    int b = luaL_checkinteger(L, 4);
+    int a = 255;
+    if (lua_gettop(L) >= 5)
+    {
+        a = luaL_checkinteger(L, 5);
+    }
+
+    uint32_t color = pack_rgba(r, g, b, a);
+    int count = canvas->w * canvas->h;
+    for (int i = 0; i < count; ++i)
+    {
+        canvas->pixels[i] = color;
+    }
+
+    return 0;
+}
+
+static int lua_canvas_set_pixel(lua_State *L)
+{
+    lua_canvas_t *canvas = check_canvas(L);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int r = luaL_checkinteger(L, 4);
+    int g = luaL_checkinteger(L, 5);
+    int b = luaL_checkinteger(L, 6);
+    int a = 255;
+    if (lua_gettop(L) >= 7)
+    {
+        a = luaL_checkinteger(L, 7);
+    }
+
+    if (x < 0 || x >= canvas->w || y < 0 || y >= canvas->h)
+    {
+        return 0;
+    }
+
+    canvas->pixels[y * canvas->w + x] = pack_rgba(r, g, b, a);
+    return 0;
+}
+
+static int lua_canvas_fill_rect(lua_State *L)
+{
+    lua_canvas_t *canvas = check_canvas(L);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int w = luaL_checkinteger(L, 4);
+    int h = luaL_checkinteger(L, 5);
+    int r = luaL_checkinteger(L, 6);
+    int g = luaL_checkinteger(L, 7);
+    int b = luaL_checkinteger(L, 8);
+    int a = 255;
+    if (lua_gettop(L) >= 9)
+    {
+        a = luaL_checkinteger(L, 9);
+    }
+
+    if (w <= 0 || h <= 0)
+    {
+        return 0;
+    }
+
+    int x0 = x;
+    int y0 = y;
+    int x1 = x + w;
+    int y1 = y + h;
+
+    if (x0 < 0)
+    {
+        x0 = 0;
+    }
+    if (y0 < 0)
+    {
+        y0 = 0;
+    }
+    if (x1 > canvas->w)
+    {
+        x1 = canvas->w;
+    }
+    if (y1 > canvas->h)
+    {
+        y1 = canvas->h;
+    }
+
+    if (x0 >= x1 || y0 >= y1)
+    {
+        return 0;
+    }
+
+    uint32_t color = pack_rgba(r, g, b, a);
+    for (int row = y0; row < y1; ++row)
+    {
+        uint32_t *dst = canvas->pixels + row * canvas->w + x0;
+        for (int col = x0; col < x1; ++col)
+        {
+            *dst++ = color;
+        }
+    }
+
+    return 0;
+}
+
+static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc)
+{
+    luaL_newmetatable(L, GFXLC_CANVAS_MT);
+
+    lua_newtable(L);
+    lua_pushcfunction(L, lua_canvas_clear);
+    lua_setfield(L, -2, "clear");
+    lua_pushcfunction(L, lua_canvas_fill_rect);
+    lua_setfield(L, -2, "fill_rect");
+    lua_pushcfunction(L, lua_canvas_set_pixel);
+    lua_setfield(L, -2, "set_pixel");
+    lua_setfield(L, -2, "__index");
+
+    lua_pop(L, 1);
+
+    lua_canvas_t *canvas = (lua_canvas_t *)lua_newuserdata(L, sizeof(lua_canvas_t));
+    canvas->pixels = gfxlc->pixels;
+    canvas->w = gfxlc->cvs_width;
+    canvas->h = gfxlc->cvs_height;
+
+    luaL_getmetatable(L, GFXLC_CANVAS_MT);
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "canvas");
+
+    return 0;
 }
