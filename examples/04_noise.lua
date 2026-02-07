@@ -1,7 +1,7 @@
 function draw(dt)
     canvas:clear(0, 0, 0)
-    for y = 0, height - 1 do
-        for x = 0, width - 1 do
+    for y = 0, canvas.height - 1 do
+        for x = 0, canvas.width - 1 do
             local r = math.random(0, 255)
             local g = math.random(0, 255)
             local b = math.random(0, 255)

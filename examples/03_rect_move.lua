@@ -5,8 +5,8 @@ local rh = 100
 function draw(dt)
     time = time + dt
 
-    local x = width / 2 - rw / 2
-    local y = height / 2 - rh / 2
+    local x = canvas.width / 2 - rw / 2
+    local y = canvas.height / 2 - rh / 2
     local dx = math.floor(math.sin(time / 500) * 200)
 
     canvas:clear(0, 0, 0)

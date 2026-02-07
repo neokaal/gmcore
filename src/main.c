@@ -145,16 +145,12 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     {
         return 1;
     }
+    // register canvas API and load the initial script
+    register_canvas_api(gfxlc->L, gfxlc);
+    // load the initial script (if any)
     lua_load_file(gfxlc->L, gfxlc->lua_file);
 
     gfxlc->lua_last_mtime = get_file_mtime(gfxlc->lua_file);
-
-    lua_pushinteger(gfxlc->L, gfxlc->cvs_width);
-    lua_setglobal(gfxlc->L, "width");
-    lua_pushinteger(gfxlc->L, gfxlc->cvs_height);
-    lua_setglobal(gfxlc->L, "height");
-
-    register_canvas_api(gfxlc->L, gfxlc);
 
     // initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -572,6 +568,10 @@ static int register_canvas_api(lua_State *L, gfxlc_t *gfxlc)
     lua_setfield(L, -2, "fill_rect");
     lua_pushcfunction(L, lua_canvas_set_pixel);
     lua_setfield(L, -2, "set_pixel");
+    lua_pushinteger(L, gfxlc->cvs_width);
+    lua_setfield(L, -2, "width");
+    lua_pushinteger(L, gfxlc->cvs_height);
+    lua_setfield(L, -2, "height");
     lua_setfield(L, -2, "__index");
 
     lua_pop(L, 1);
