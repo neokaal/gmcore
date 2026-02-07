@@ -15,5 +15,5 @@ function draw(t)
         end
     end
 
-    dump(img, 100, 100, img_w, img_h)
+    blit(img, 100, 100, img_w, img_h)
 end

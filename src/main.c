@@ -79,7 +79,7 @@ static uint32_t *get_pixels(lua_State *L);
 
 static int lua_set_pixel(lua_State *L);
 
-static int gfxlc_lua_dump(lua_State *L);
+static int gfxlc_lua_blit(lua_State *L);
 
 static int lua_bg(lua_State *L);
 
@@ -141,8 +141,8 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     lua_pushcfunction(gfxlc->L, lua_set_pixel);
     lua_setglobal(gfxlc->L, "px");
 
-    lua_pushcfunction(gfxlc->L, gfxlc_lua_dump);
-    lua_setglobal(gfxlc->L, "dump");
+    lua_pushcfunction(gfxlc->L, gfxlc_lua_blit);
+    lua_setglobal(gfxlc->L, "blit");
 
     lua_pushcfunction(gfxlc->L, lua_bg);
     lua_setglobal(gfxlc->L, "bg");
@@ -533,7 +533,7 @@ static int lua_set_pixel(lua_State *L)
     return 0;
 }
 
-static int gfxlc_lua_dump(lua_State *L)
+static int gfxlc_lua_blit(lua_State *L)
 {
     uint32_t *pixels = get_pixels(L);
     if (!pixels)
