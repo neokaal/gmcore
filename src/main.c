@@ -245,6 +245,14 @@ int gfxlc_draw(gfxlc_t *gfxlc)
             {
                 gfxlc->quit = 1;
             }
+
+            // Check if the pressed key is Escape
+            if (gfxlc->evt.key.key == SDLK_ESCAPE)
+            {
+                SDL_Log("Escape key pressed, quitting.");
+                // Set your loop condition to false
+                gfxlc->quit = 1;
+            }
         }
     }
     return 0;
