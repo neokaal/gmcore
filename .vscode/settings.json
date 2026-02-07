@@ -1,3 +1,11 @@
 {
-  "Lua.diagnostics.globals": ["draw", "width", "height", "px", "bg", "blit"]
+  "Lua.diagnostics.globals": [
+    "draw",
+    "width",
+    "height",
+    "px",
+    "bg",
+    "blit",
+    "noise"
+  ]
 }
