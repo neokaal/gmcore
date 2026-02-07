@@ -567,36 +567,29 @@ static int gfxlc_lua_blit(lua_State *L)
     }
 
     int table_len = luaL_len(L, 1);
-    if (table_len < w * h * 3)
+    if (table_len != w * h * 4)
     {
-        return luaL_error(L, "image data is smaller than the target dump area");
+        return luaL_error(L, "image data length must be (width * height * 4) for RGBA values");
     }
 
     for (int j = 0; j < h; j++)
     {
         for (int i = 0; i < w; i++)
         {
-            int idx = (j * w + i) * 3 + 1;
+            int idx = (j * w + i) * 4 + 1; // Always 4 components per pixel
             lua_rawgeti(L, 1, idx);
             lua_rawgeti(L, 1, idx + 1);
             lua_rawgeti(L, 1, idx + 2);
+            lua_rawgeti(L, 1, idx + 3); // Always read alpha
 
-            int r = luaL_checkinteger(L, -3);
-            int g = luaL_checkinteger(L, -2);
-            int b = luaL_checkinteger(L, -1);
-            int a = 255; // default alpha
-
-            // check for alpha value
-            if (table_len >= w * h * 4)
-            {
-                lua_rawgeti(L, 1, idx + 3);
-                a = luaL_checkinteger(L, -1);
-                lua_pop(L, 1);
-            }
+            int r = luaL_checkinteger(L, -4);
+            int g = luaL_checkinteger(L, -3);
+            int b = luaL_checkinteger(L, -2);
+            int a = luaL_checkinteger(L, -1); // Always use provided alpha
 
             pixels[(y + j) * canvas_w + (x + i)] = (r << 24) | (g << 16) | (b << 8) | (a & 0xFF);
 
-            lua_pop(L, 3);
+            lua_pop(L, 4); // Pop R, G, B, A
         }
     }
 

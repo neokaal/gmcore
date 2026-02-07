@@ -12,6 +12,7 @@ function draw(t)
             table.insert(img, i * 5)
             table.insert(img, j * 5)
             table.insert(img, 255)
+            table.insert(img, 255)
         end
     end
 
