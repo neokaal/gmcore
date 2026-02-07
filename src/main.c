@@ -13,10 +13,10 @@
 #include <lualib.h>
 
 // statusbar height
-#define SB_H 32
+#define SB_H 16
 
-#define GFX_W 800
-#define GFX_H 600 - SB_H
+#define GFX_W 400
+#define GFX_H 360 - SB_H
 
 #define GFXLC_CANVAS_MT "gfxlc.canvas"
 
