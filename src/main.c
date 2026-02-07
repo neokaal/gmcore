@@ -80,6 +80,7 @@ static uint32_t *get_pixels(lua_State *L);
 static int lua_set_pixel(lua_State *L);
 
 static int gfxlc_lua_blit(lua_State *L);
+static int gfxlc_lua_noise(lua_State *L);
 
 static int lua_bg(lua_State *L);
 
@@ -144,6 +145,9 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     lua_pushcfunction(gfxlc->L, gfxlc_lua_blit);
     lua_setglobal(gfxlc->L, "blit");
 
+    lua_pushcfunction(gfxlc->L, gfxlc_lua_noise);
+    lua_setglobal(gfxlc->L, "noise");
+
     lua_pushcfunction(gfxlc->L, lua_bg);
     lua_setglobal(gfxlc->L, "bg");
 
@@ -173,6 +177,8 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         return 1;
     }
     printf("SDL Init succeeded.\n");
+
+    SDL_srand((unsigned int)time(NULL));
 
     // create a window with the given dimensions and title
     gfxlc->window = SDL_CreateWindow("gfxlc",
@@ -594,6 +600,48 @@ static int gfxlc_lua_blit(lua_State *L)
     }
 
     return 0;
+}
+
+static int gfxlc_lua_noise(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_width");
+    int w = luaL_checkinteger(L, -1);
+    lua_pop(L, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, "gfx_height");
+    int h = luaL_checkinteger(L, -1);
+    lua_pop(L, 1);
+
+    // Seed random number generator once during initialization in gfxlc_init
+    // static int seeded = 0;
+    // if (!seeded) {
+    //     srand((unsigned int)time(NULL));
+    //     seeded = 1;
+    // }
+
+    lua_newtable(L); // Create a new table
+    int table_idx = 1;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            int r = SDL_rand(256);
+            int g = SDL_rand(256);
+            int b = SDL_rand(256);
+            int a = 255; // Fully opaque
+
+            lua_pushinteger(L, r);
+            lua_rawseti(L, -2, table_idx++);
+            lua_pushinteger(L, g);
+            lua_rawseti(L, -2, table_idx++);
+            lua_pushinteger(L, b);
+            lua_rawseti(L, -2, table_idx++);
+            lua_pushinteger(L, a);
+            lua_rawseti(L, -2, table_idx++);
+        }
+    }
+
+    return 1; // Return the new table
 }
 
 
