@@ -1,4 +1,4 @@
 function draw(dt)
-    bg(0, 0, 0)
-    px(width / 2, height / 2, 255, 255, 255)
+    canvas:clear(0, 0, 0)
+    canvas:set_pixel(math.floor(width / 2), math.floor(height / 2), 255, 255, 255, 255)
 end

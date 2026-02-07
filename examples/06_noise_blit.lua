@@ -1,4 +1,8 @@
 function draw(dt)
-    local noise_data = noise()
-    blit(noise_data, 0, 0, width, height)
+    for y = 0, height - 1 do
+        for x = 0, width - 1 do
+            local v = math.random(0, 255)
+            canvas:set_pixel(x, y, v, v, v, 255)
+        end
+    end
 end
