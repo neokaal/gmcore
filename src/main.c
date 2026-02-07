@@ -70,7 +70,7 @@ typedef struct
 int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file);
 int gfxlc_draw(gfxlc_t *gfxlc);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
-lua_State *lua_init_and_load(const char *filename);
+lua_State *lua_init();
 int load_fonts(gfxlc_t *gfxlc);
 void init_fps_texture(gfxlc_t *gfxlc);
 void draw_fps(gfxlc_t *gfxlc);
@@ -140,11 +140,12 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     }
     memset(gfxlc->pixels, 0, gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
 
-    gfxlc->L = lua_init_and_load(gfxlc->lua_file);
+    gfxlc->L = lua_init();
     if (!gfxlc->L)
     {
         return 1;
     }
+    lua_load_file(gfxlc->L, gfxlc->lua_file);
 
     gfxlc->lua_last_mtime = get_file_mtime(gfxlc->lua_file);
 
@@ -253,7 +254,7 @@ int gfxlc_draw(gfxlc_t *gfxlc)
     return 0;
 }
 
-lua_State *lua_init_and_load(const char *filename)
+lua_State *lua_init(void)
 {
     lua_State *L = luaL_newstate();
     if (!L)
@@ -270,31 +271,6 @@ lua_State *lua_init_and_load(const char *filename)
     lua_pop(L, 1);
 
     luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
-    lua_pop(L, 1);
-
-    /* load file */
-    if (luaL_loadfile(L, filename) != LUA_OK)
-    {
-        SDL_Log("lua load error: %s\n", lua_tostring(L, -1));
-        lua_close(L);
-        return NULL;
-    }
-
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
-    {
-        SDL_Log("lua runtime error: %s\n", lua_tostring(L, -1));
-        lua_close(L);
-        return NULL;
-    }
-
-    /* verify draw() */
-    lua_getglobal(L, "draw");
-    if (!lua_isfunction(L, -1))
-    {
-        SDL_Log("error: script must define draw(t)\n");
-        lua_close(L);
-        return NULL;
-    }
     lua_pop(L, 1);
 
     return L;
