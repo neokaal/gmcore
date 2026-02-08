@@ -29,9 +29,9 @@ typedef struct
 static inline uint32_t
 pack_rgba(int r, int g, int b, int a);
 
-int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file);
+int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int width, int height);
 void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx);
-void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx, const char *filename);
+void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx);
 int gfxlc_lua_call_draw(gfxlc_lua_t *lua_ctx, float t);
 int gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx);
 

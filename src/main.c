@@ -46,13 +46,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    gfxlc_lua_t *lua_ctx = NULL;
-    if (!gfxlc_lua_init(&lua_ctx, lua_file))
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
-        return 1;
-    }
-
     gfxlc_t *gfxctx = (gfxlc_t *)calloc(sizeof(gfxlc_t), 1);
     if (gfxctx == NULL)
     {
@@ -62,10 +55,17 @@ int main(int argc, char *argv[])
 
     gfxlc_init(gfxctx);
 
-    // register game API and load the initial script
-    gfxlc_lua_register_game_api(lua_ctx->L, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height);
+    gfxlc_lua_t *lua_ctx = NULL;
+    if (!gfxlc_lua_init(&lua_ctx, lua_file, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
+        gfxlc_shutdown(gfxctx);
+        free(gfxctx);
+        return 1;
+    }
+
     // load the initial script (if any)
-    gfxlc_lua_load_file(lua_ctx, lua_ctx->lua_file);
+    gfxlc_lua_load_file(lua_ctx);
 
     gfxlc_draw(gfxctx, lua_ctx);
 

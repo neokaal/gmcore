@@ -8,7 +8,7 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file)
+int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int width, int height)
 {
     (*lua_ctx) = (gfxlc_lua_t *)calloc(sizeof(gfxlc_lua_t), 1);
     if ((*lua_ctx) == NULL)
@@ -47,6 +47,9 @@ int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file)
     luaL_requiref(lc->L, LUA_TABLIBNAME, luaopen_table, 1);
     lua_pop(lc->L, 1);
 
+    // register game API and load the initial script
+    gfxlc_lua_register_game_api(lc->L, pixels, width, height);
+
     return 1;
 }
 
@@ -66,9 +69,9 @@ void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx)
     }
 }
 
-void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx, const char *filename)
+void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx)
 {
-    if (luaL_loadfile(lua_ctx->L, filename) != LUA_OK)
+    if (luaL_loadfile(lua_ctx->L, lua_ctx->lua_file) != LUA_OK)
     {
         SDL_Log("lua load error: %s\n", lua_tostring(lua_ctx->L, -1));
         lua_pop(lua_ctx->L, 1);
@@ -101,7 +104,7 @@ int gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
         printf("reloading %s\n", lua_ctx->lua_file);
 
         lua_ctx->lua_last_mtime = mtime;
-        gfxlc_lua_load_file(lua_ctx, lua_ctx->lua_file);
+        gfxlc_lua_load_file(lua_ctx);
         return 1;
     }
     return 0;
