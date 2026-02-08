@@ -17,8 +17,8 @@
 #define GFX_W 400
 #define GFX_H 360 - SB_H
 
-int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file);
-int gfxlc_draw(gfxlc_t *gfxlc);
+int gfxlc_init(gfxlc_t *gfxlc);
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
 int load_fonts(gfxlc_t *gfxlc);
 void init_fps_texture(gfxlc_t *gfxlc);
@@ -46,6 +46,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    gfxlc_lua_t *lua_ctx = NULL;
+    if (!gfxlc_lua_init(&lua_ctx, lua_file))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
+        return 1;
+    }
+
     gfxlc_t *gfxctx = (gfxlc_t *)calloc(sizeof(gfxlc_t), 1);
     if (gfxctx == NULL)
     {
@@ -53,25 +60,25 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    gfxlc_init(gfxctx, lua_file);
-    gfxlc_draw(gfxctx);
+    gfxlc_init(gfxctx);
+
+    // register game API and load the initial script
+    gfxlc_lua_register_game_api(lua_ctx->L, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height);
+    // load the initial script (if any)
+    gfxlc_lua_load_file(lua_ctx, lua_ctx->lua_file);
+
+    gfxlc_draw(gfxctx, lua_ctx);
+
+    gfxlc_lua_shutdown(lua_ctx);
     gfxlc_shutdown(gfxctx);
 
     free(gfxctx);
     return 0;
 }
 
-int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
+int gfxlc_init(gfxlc_t *gfxlc)
 {
     memset(gfxlc, 0, sizeof(gfxlc_t));
-    if (lua_file == NULL)
-    {
-        gfxlc->lua_file = NULL;
-    }
-    else
-    {
-        gfxlc->lua_file = strdup(lua_file);
-    }
 
     // dimensions of the canvas
     gfxlc->cvs_width = GFX_W;
@@ -92,18 +99,6 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         exit(1);
     }
     memset(gfxlc->pixels, 0, gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
-
-    gfxlc->L = gfxlc_lua_init();
-    if (!gfxlc->L)
-    {
-        return 1;
-    }
-    // register game API and load the initial script
-    gfxlc_lua_register_game_api(gfxlc->L, gfxlc->pixels, gfxlc->cvs_width, gfxlc->cvs_height);
-    // load the initial script (if any)
-    gfxlc_lua_load_file(gfxlc->L, gfxlc->lua_file);
-
-    gfxlc->lua_last_mtime = get_file_mtime(gfxlc->lua_file);
 
     // initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
@@ -156,24 +151,17 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     return 0;
 }
 
-int gfxlc_draw(gfxlc_t *gfxlc)
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx)
 {
     uint64_t prev = SDL_GetTicks();
     while (gfxlc->quit == 0)
     {
-        // hot-reload lua script if modified
-        time_t mtime = get_file_mtime(gfxlc->lua_file);
-        if (mtime != 0 && mtime != gfxlc->lua_last_mtime)
-        {
-            printf("reloading %s\n", gfxlc->lua_file);
-
-            gfxlc->lua_last_mtime = mtime;
-            gfxlc_lua_load_file(gfxlc->L, gfxlc->lua_file);
-        }
+        // lua hot reload
+        gfxlc_lua_hot_reload(lua_ctx);
 
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
-        if (!gfxlc_lua_call_draw(gfxlc->L, dt))
+        if (!gfxlc_lua_call_draw(lua_ctx, dt))
         {
             break;
         }
@@ -213,11 +201,6 @@ int gfxlc_draw(gfxlc_t *gfxlc)
 
 void gfxlc_shutdown(gfxlc_t *gfxlc)
 {
-    if (gfxlc->L)
-    {
-        lua_close(gfxlc->L);
-    }
-
     if (gfxlc->fpsTexture)
     {
         SDL_DestroyTexture(gfxlc->fpsTexture);
@@ -245,10 +228,6 @@ void gfxlc_shutdown(gfxlc_t *gfxlc)
     if (gfxlc->pixels)
     {
         free(gfxlc->pixels);
-    }
-    if (gfxlc->lua_file)
-    {
-        free(gfxlc->lua_file);
     }
 
     SDL_Quit();

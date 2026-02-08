@@ -8,61 +8,114 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-lua_State *gfxlc_lua_init(void)
+int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file)
 {
-    lua_State *L = luaL_newstate();
-    if (!L)
+    (*lua_ctx) = (gfxlc_lua_t *)calloc(sizeof(gfxlc_lua_t), 1);
+    if ((*lua_ctx) == NULL)
+    {
+        SDL_Log("Unable to allocate memory for gfxlc_lua_t.\n");
+        return 1;
+    }
+
+    gfxlc_lua_t *lc = (*lua_ctx);
+
+    if (lua_file == NULL)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No Lua file specified for gfxlc_lua_init.\n");
+        free(lc);
+        return 1;
+    }
+    else
+    {
+        lc->lua_file = strdup(lua_file);
+    }
+
+    lc->L = luaL_newstate();
+    if (!lc->L)
     {
         SDL_Log("failed to create lua state\n");
-        return NULL;
+        return 1;
     }
 
     /* open base + math + table */
-    luaL_requiref(L, "_G", luaopen_base, 1);
-    lua_pop(L, 1);
+    luaL_requiref(lc->L, "_G", luaopen_base, 1);
+    lua_pop(lc->L, 1);
 
-    luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-    lua_pop(L, 1);
+    luaL_requiref(lc->L, LUA_MATHLIBNAME, luaopen_math, 1);
+    lua_pop(lc->L, 1);
 
-    luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
-    lua_pop(L, 1);
+    luaL_requiref(lc->L, LUA_TABLIBNAME, luaopen_table, 1);
+    lua_pop(lc->L, 1);
 
-    return L;
+    return 1;
 }
 
-void gfxlc_lua_load_file(lua_State *L, const char *filename)
+void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx)
 {
-    if (luaL_loadfile(L, filename) != LUA_OK)
+    if (lua_ctx)
     {
-        SDL_Log("lua load error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
+        if (lua_ctx->L)
+        {
+            lua_close(lua_ctx->L);
+        }
+        if (lua_ctx->lua_file)
+        {
+            free(lua_ctx->lua_file);
+        }
+        free(lua_ctx);
+    }
+}
+
+void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx, const char *filename)
+{
+    if (luaL_loadfile(lua_ctx->L, filename) != LUA_OK)
+    {
+        SDL_Log("lua load error: %s\n", lua_tostring(lua_ctx->L, -1));
+        lua_pop(lua_ctx->L, 1);
         return;
     }
 
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    if (lua_pcall(lua_ctx->L, 0, 0, 0) != LUA_OK)
     {
-        SDL_Log("lua runtime error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
+        SDL_Log("lua runtime error: %s\n", lua_tostring(lua_ctx->L, -1));
+        lua_pop(lua_ctx->L, 1);
         return;
     }
 
-    lua_getglobal(L, "draw");
-    if (!lua_isfunction(L, -1))
+    lua_getglobal(lua_ctx->L, "draw");
+    if (!lua_isfunction(lua_ctx->L, -1))
     {
         SDL_Log("error: script must define draw(t)\n");
     }
-    lua_pop(L, 1);
+    lua_pop(lua_ctx->L, 1);
+
+    lua_ctx->lua_last_mtime = get_file_mtime(lua_ctx->lua_file);
 }
 
-int gfxlc_lua_call_draw(lua_State *L, float dt)
+int gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
 {
-    lua_getglobal(L, "draw");
-    lua_pushnumber(L, dt);
-
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+    // hot-reload lua script if modified
+    time_t mtime = get_file_mtime(lua_ctx->lua_file);
+    if (mtime != 0 && mtime != lua_ctx->lua_last_mtime)
     {
-        SDL_Log("lua draw error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
+        printf("reloading %s\n", lua_ctx->lua_file);
+
+        lua_ctx->lua_last_mtime = mtime;
+        gfxlc_lua_load_file(lua_ctx, lua_ctx->lua_file);
+        return 1;
+    }
+    return 0;
+}
+
+int gfxlc_lua_call_draw(gfxlc_lua_t *lua_ctx, float dt)
+{
+    lua_getglobal(lua_ctx->L, "draw");
+    lua_pushnumber(lua_ctx->L, dt);
+
+    if (lua_pcall(lua_ctx->L, 1, 0, 0) != LUA_OK)
+    {
+        SDL_Log("lua draw error: %s\n", lua_tostring(lua_ctx->L, -1));
+        lua_pop(lua_ctx->L, 1);
         return 0;
     }
 
