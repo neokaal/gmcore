@@ -1,4 +1,4 @@
-#include "gfxlc_luabind.h"
+#include "gfxlc_lua.h"
 
 static inline uint32_t pack_rgba(int r, int g, int b, int a)
 {

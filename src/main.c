@@ -9,7 +9,7 @@
 
 #include "gfxlc_util.h"
 #include "gfxlc_context.h"
-#include "gfxlc_luabind.h"
+#include "gfxlc_lua.h"
 
 // statusbar height
 #define SB_H 16
