@@ -7,11 +7,6 @@
 
 typedef struct
 {
-    // Lua state and script info
-    // lua_State *L;
-    // char *lua_file;
-    // time_t lua_last_mtime;
-
     // SDL window, renderer, and texture
     SDL_Window *window;
     SDL_Renderer *renderer;
