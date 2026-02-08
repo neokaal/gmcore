@@ -8,7 +8,7 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-lua_State *lua_init(void)
+lua_State *gfxlc_lua_init(void)
 {
     lua_State *L = luaL_newstate();
     if (!L)
@@ -30,7 +30,7 @@ lua_State *lua_init(void)
     return L;
 }
 
-void lua_load_file(lua_State *L, const char *filename)
+void gfxlc_lua_load_file(lua_State *L, const char *filename)
 {
     if (luaL_loadfile(L, filename) != LUA_OK)
     {
@@ -54,7 +54,7 @@ void lua_load_file(lua_State *L, const char *filename)
     lua_pop(L, 1);
 }
 
-int lua_call_draw(lua_State *L, float dt)
+int gfxlc_lua_call_draw(lua_State *L, float dt)
 {
     lua_getglobal(L, "draw");
     lua_pushnumber(L, dt);
@@ -69,14 +69,14 @@ int lua_call_draw(lua_State *L, float dt)
     return 1;
 }
 
-static lua_game_t *check_game(lua_State *L)
+static gfxlc_lua_game_t *gfxlc_lua_check_game(lua_State *L)
 {
-    return (lua_game_t *)luaL_checkudata(L, 1, GFXLC_GAME_MT);
+    return (gfxlc_lua_game_t *)luaL_checkudata(L, 1, GFXLC_GAME_MT);
 }
 
-static int lua_game_clear(lua_State *L)
+static int gfxlc_lua_game_clear(lua_State *L)
 {
-    lua_game_t *game = check_game(L);
+    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
     int r = luaL_checkinteger(L, 2);
     int g = luaL_checkinteger(L, 3);
     int b = luaL_checkinteger(L, 4);
@@ -96,9 +96,9 @@ static int lua_game_clear(lua_State *L)
     return 0;
 }
 
-static int lua_game_set_pixel(lua_State *L)
+static int gfxlc_lua_game_set_pixel(lua_State *L)
 {
-    lua_game_t *game = check_game(L);
+    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int r = luaL_checkinteger(L, 4);
@@ -119,9 +119,9 @@ static int lua_game_set_pixel(lua_State *L)
     return 0;
 }
 
-static int lua_game_fill_rect(lua_State *L)
+static int gfxlc_lua_game_fill_rect(lua_State *L)
 {
-    lua_game_t *game = check_game(L);
+    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int w = luaL_checkinteger(L, 4);
@@ -180,16 +180,16 @@ static int lua_game_fill_rect(lua_State *L)
     return 0;
 }
 
-int register_game_api(lua_State *L, uint32_t *pixels, int width, int height)
+int gfxlc_lua_register_game_api(lua_State *L, uint32_t *pixels, int width, int height)
 {
     luaL_newmetatable(L, GFXLC_GAME_MT);
 
     lua_newtable(L);
-    lua_pushcfunction(L, lua_game_clear);
+    lua_pushcfunction(L, gfxlc_lua_game_clear);
     lua_setfield(L, -2, "clear");
-    lua_pushcfunction(L, lua_game_fill_rect);
+    lua_pushcfunction(L, gfxlc_lua_game_fill_rect);
     lua_setfield(L, -2, "fill_rect");
-    lua_pushcfunction(L, lua_game_set_pixel);
+    lua_pushcfunction(L, gfxlc_lua_game_set_pixel);
     lua_setfield(L, -2, "set_pixel");
     lua_pushinteger(L, width);
     lua_setfield(L, -2, "width");
@@ -199,7 +199,7 @@ int register_game_api(lua_State *L, uint32_t *pixels, int width, int height)
 
     lua_pop(L, 1);
 
-    lua_game_t *canvas = (lua_game_t *)lua_newuserdata(L, sizeof(lua_game_t));
+    gfxlc_lua_game_t *canvas = (gfxlc_lua_game_t *)lua_newuserdata(L, sizeof(gfxlc_lua_game_t));
     canvas->pixels = pixels;
     canvas->w = width;
     canvas->h = height;

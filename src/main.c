@@ -93,15 +93,15 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
     }
     memset(gfxlc->pixels, 0, gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
 
-    gfxlc->L = lua_init();
+    gfxlc->L = gfxlc_lua_init();
     if (!gfxlc->L)
     {
         return 1;
     }
     // register game API and load the initial script
-    register_game_api(gfxlc->L, gfxlc->pixels, gfxlc->cvs_width, gfxlc->cvs_height);
+    gfxlc_lua_register_game_api(gfxlc->L, gfxlc->pixels, gfxlc->cvs_width, gfxlc->cvs_height);
     // load the initial script (if any)
-    lua_load_file(gfxlc->L, gfxlc->lua_file);
+    gfxlc_lua_load_file(gfxlc->L, gfxlc->lua_file);
 
     gfxlc->lua_last_mtime = get_file_mtime(gfxlc->lua_file);
 
@@ -168,12 +168,12 @@ int gfxlc_draw(gfxlc_t *gfxlc)
             printf("reloading %s\n", gfxlc->lua_file);
 
             gfxlc->lua_last_mtime = mtime;
-            lua_load_file(gfxlc->L, gfxlc->lua_file);
+            gfxlc_lua_load_file(gfxlc->L, gfxlc->lua_file);
         }
 
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
-        if (!lua_call_draw(gfxlc->L, dt))
+        if (!gfxlc_lua_call_draw(gfxlc->L, dt))
         {
             break;
         }
