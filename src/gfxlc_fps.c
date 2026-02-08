@@ -45,6 +45,9 @@ void gfxlc_fps_draw(gfxlc_fps_t *fps, SDL_Renderer *renderer, TTF_Font *font, in
         if (surf)
         {
             fps->fpsTexture = SDL_CreateTextureFromSurface(renderer, surf);
+            // Set scale mode to NEAREST to get sharp pixel edges
+            SDL_SetTextureScaleMode(fps->fpsTexture, SDL_SCALEMODE_PIXELART);
+
             fps->fpsRect.w = (float)surf->w;
             fps->fpsRect.h = (float)surf->h;
             SDL_DestroySurface(surf);

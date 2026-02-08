@@ -153,6 +153,9 @@ int gfxlc_init(gfxlc_t *gfxlc)
         exit(1);
     }
 
+    // Set scale mode to NEAREST to get sharp pixel edges
+    SDL_SetTextureScaleMode(gfxlc->texture, SDL_SCALEMODE_PIXELART);
+
     // init game loop vars
     gfxlc->quit = 0;
     gfxlc->start_ticks = SDL_GetTicks();
