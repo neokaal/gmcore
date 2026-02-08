@@ -12,11 +12,11 @@
 #include "gfxlc_lua.h"
 #include "gfxlc_fps.h"
 
-// statusbar height
-#define SB_H 16
+#define CNV_W 320
+#define CNV_H 240
 
-#define GFX_W 400
-#define GFX_H 360 - SB_H
+#define GFX_W (CNV_W * 2)
+#define GFX_H (CNV_H * 2)
 
 int gfxlc_init(gfxlc_t *gfxlc);
 int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps);
@@ -91,16 +91,16 @@ int gfxlc_init(gfxlc_t *gfxlc)
     memset(gfxlc, 0, sizeof(gfxlc_t));
 
     // dimensions of the canvas
-    gfxlc->cvs_width = GFX_W;
-    gfxlc->cvs_height = GFX_H;
+    gfxlc->cvs_width = CNV_W;
+    gfxlc->cvs_height = CNV_H;
     gfxlc->cvs_on_win_rect.x = 0;
     gfxlc->cvs_on_win_rect.y = 0;
-    gfxlc->cvs_on_win_rect.w = gfxlc->cvs_width;
-    gfxlc->cvs_on_win_rect.h = gfxlc->cvs_height;
+    gfxlc->cvs_on_win_rect.w = GFX_W;
+    gfxlc->cvs_on_win_rect.h = GFX_H;
 
     // dimensions of the window
     gfxlc->win_width = GFX_W;
-    gfxlc->win_height = GFX_H + SB_H;
+    gfxlc->win_height = GFX_H;
 
     gfxlc->pixels = malloc(gfxlc->cvs_width * gfxlc->cvs_height * sizeof(uint32_t));
     if (!gfxlc->pixels)
@@ -262,15 +262,3 @@ int load_fonts(gfxlc_t *gfxlc)
     }
     return 0;
 }
-
-// void init_fps_texture(gfxlc_t *gfxlc)
-// {
-//     gfxlc->lastUpdateTime = 0;
-//     gfxlc->frameCount = 0;
-//     gfxlc->fpsTexture = NULL;
-//     gfxlc->fpsRect.x = gfxlc->win_width - 100;
-//     gfxlc->fpsRect.y = gfxlc->win_height - SB_H + 4;
-//     gfxlc->fpsRect.w = 100;
-//     gfxlc->fpsRect.h = SB_H - 8;
-//     gfxlc->currentFPS = 0.0f;
-// }
