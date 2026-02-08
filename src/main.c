@@ -3,14 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "gfxlc_util.h"
+#include "gfxlc_context.h"
+#include "gfxlc_luabind.h"
 
 // statusbar height
 #define SB_H 16
@@ -18,75 +17,12 @@
 #define GFX_W 400
 #define GFX_H 360 - SB_H
 
-#define GFXLC_GAME_MT "gfxlc.gm"
-
-typedef struct
-{
-    uint32_t *pixels;
-    int w;
-    int h;
-} lua_game_t;
-
-typedef struct
-{
-    // Lua state and script info
-    lua_State *L;
-    char *lua_file;
-    time_t lua_last_mtime;
-
-    // SDL window, renderer, and texture
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
-
-    // SDL font
-    TTF_Font *font;
-
-    // game loop
-    int quit;
-    SDL_Event evt;
-    uint64_t start_ticks;
-
-    // canvas pixel buffer
-    uint32_t *pixels;
-
-    // canvas dimensions
-    int cvs_width;
-    int cvs_height;
-    SDL_FRect cvs_on_win_rect;
-
-    // window dimensions
-    int win_width;
-    int win_height;
-
-    // fps texture related state
-    int frameCount;
-    uint64_t lastUpdateTime;
-    SDL_Texture *fpsTexture;
-    SDL_FRect fpsRect;
-    float currentFPS;
-} gfxlc_t;
-
 int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file);
 int gfxlc_draw(gfxlc_t *gfxlc);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
-lua_State *lua_init();
 int load_fonts(gfxlc_t *gfxlc);
 void init_fps_texture(gfxlc_t *gfxlc);
 void draw_fps(gfxlc_t *gfxlc);
-void lua_load_file(lua_State *L, const char *filename);
-int lua_call_draw(lua_State *L, float t);
-static inline uint32_t pack_rgba(int r, int g, int b, int a);
-static lua_game_t *check_game(lua_State *L);
-static int lua_game_clear(lua_State *L);
-static int lua_game_set_pixel(lua_State *L);
-static int lua_game_fill_rect(lua_State *L);
-static int register_game_api(lua_State *L, gfxlc_t *gfxlc);
-static time_t get_file_mtime(const char *path);
-
-//// Utility functions
-// Function to check if a file exists
-int file_exists(const char *filename);
 
 int main(int argc, char *argv[])
 {
@@ -163,7 +99,7 @@ int gfxlc_init(gfxlc_t *gfxlc, const char *lua_file)
         return 1;
     }
     // register game API and load the initial script
-    register_game_api(gfxlc->L, gfxlc);
+    register_game_api(gfxlc->L, gfxlc->pixels, gfxlc->cvs_width, gfxlc->cvs_height);
     // load the initial script (if any)
     lua_load_file(gfxlc->L, gfxlc->lua_file);
 
@@ -273,28 +209,6 @@ int gfxlc_draw(gfxlc_t *gfxlc)
         }
     }
     return 0;
-}
-
-lua_State *lua_init(void)
-{
-    lua_State *L = luaL_newstate();
-    if (!L)
-    {
-        SDL_Log("failed to create lua state\n");
-        return NULL;
-    }
-
-    /* open base + math + table */
-    luaL_requiref(L, "_G", luaopen_base, 1);
-    lua_pop(L, 1);
-
-    luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
-    lua_pop(L, 1);
-
-    luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
-    lua_pop(L, 1);
-
-    return L;
 }
 
 void gfxlc_shutdown(gfxlc_t *gfxlc)
@@ -412,215 +326,4 @@ void draw_fps(gfxlc_t *gfxlc)
     {
         SDL_RenderTexture(gfxlc->renderer, gfxlc->fpsTexture, NULL, &gfxlc->fpsRect);
     }
-}
-
-void lua_load_file(lua_State *L, const char *filename)
-{
-    if (luaL_loadfile(L, filename) != LUA_OK)
-    {
-        SDL_Log("lua load error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return;
-    }
-
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
-    {
-        SDL_Log("lua runtime error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return;
-    }
-
-    lua_getglobal(L, "draw");
-    if (!lua_isfunction(L, -1))
-    {
-        SDL_Log("error: script must define draw(t)\n");
-    }
-    lua_pop(L, 1);
-}
-
-int lua_call_draw(lua_State *L, float dt)
-{
-    lua_getglobal(L, "draw");
-    lua_pushnumber(L, dt);
-
-    if (lua_pcall(L, 1, 0, 0) != LUA_OK)
-    {
-        SDL_Log("lua draw error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return 0;
-    }
-
-    return 1;
-}
-
-static time_t get_file_mtime(const char *path)
-{
-    struct stat st;
-    if (stat(path, &st) != 0)
-    {
-        return 0;
-    }
-    return st.st_mtime;
-}
-
-static inline uint32_t pack_rgba(int r, int g, int b, int a)
-{
-    return ((uint32_t)(r & 0xFF) << 24) |
-           ((uint32_t)(g & 0xFF) << 16) |
-           ((uint32_t)(b & 0xFF) << 8) |
-           (uint32_t)(a & 0xFF);
-}
-
-static lua_game_t *check_game(lua_State *L)
-{
-    return (lua_game_t *)luaL_checkudata(L, 1, GFXLC_GAME_MT);
-}
-
-static int lua_game_clear(lua_State *L)
-{
-    lua_game_t *game = check_game(L);
-    int r = luaL_checkinteger(L, 2);
-    int g = luaL_checkinteger(L, 3);
-    int b = luaL_checkinteger(L, 4);
-    int a = 255;
-    if (lua_gettop(L) >= 5)
-    {
-        a = luaL_checkinteger(L, 5);
-    }
-
-    uint32_t color = pack_rgba(r, g, b, a);
-    int count = game->w * game->h;
-    for (int i = 0; i < count; ++i)
-    {
-        game->pixels[i] = color;
-    }
-
-    return 0;
-}
-
-static int lua_game_set_pixel(lua_State *L)
-{
-    lua_game_t *game = check_game(L);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int r = luaL_checkinteger(L, 4);
-    int g = luaL_checkinteger(L, 5);
-    int b = luaL_checkinteger(L, 6);
-    int a = 255;
-    if (lua_gettop(L) >= 7)
-    {
-        a = luaL_checkinteger(L, 7);
-    }
-
-    if (x < 0 || x >= game->w || y < 0 || y >= game->h)
-    {
-        return 0;
-    }
-
-    game->pixels[y * game->w + x] = pack_rgba(r, g, b, a);
-    return 0;
-}
-
-static int lua_game_fill_rect(lua_State *L)
-{
-    lua_game_t *game = check_game(L);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int w = luaL_checkinteger(L, 4);
-    int h = luaL_checkinteger(L, 5);
-    int r = luaL_checkinteger(L, 6);
-    int g = luaL_checkinteger(L, 7);
-    int b = luaL_checkinteger(L, 8);
-    int a = 255;
-    if (lua_gettop(L) >= 9)
-    {
-        a = luaL_checkinteger(L, 9);
-    }
-
-    if (w <= 0 || h <= 0)
-    {
-        return 0;
-    }
-
-    int x0 = x;
-    int y0 = y;
-    int x1 = x + w;
-    int y1 = y + h;
-
-    if (x0 < 0)
-    {
-        x0 = 0;
-    }
-    if (y0 < 0)
-    {
-        y0 = 0;
-    }
-    if (x1 > game->w)
-    {
-        x1 = game->w;
-    }
-    if (y1 > game->h)
-    {
-        y1 = game->h;
-    }
-
-    if (x0 >= x1 || y0 >= y1)
-    {
-        return 0;
-    }
-
-    uint32_t color = pack_rgba(r, g, b, a);
-    for (int row = y0; row < y1; ++row)
-    {
-        uint32_t *dst = game->pixels + row * game->w + x0;
-        for (int col = x0; col < x1; ++col)
-        {
-            *dst++ = color;
-        }
-    }
-
-    return 0;
-}
-
-static int register_game_api(lua_State *L, gfxlc_t *gfxlc)
-{
-    luaL_newmetatable(L, GFXLC_GAME_MT);
-
-    lua_newtable(L);
-    lua_pushcfunction(L, lua_game_clear);
-    lua_setfield(L, -2, "clear");
-    lua_pushcfunction(L, lua_game_fill_rect);
-    lua_setfield(L, -2, "fill_rect");
-    lua_pushcfunction(L, lua_game_set_pixel);
-    lua_setfield(L, -2, "set_pixel");
-    lua_pushinteger(L, gfxlc->cvs_width);
-    lua_setfield(L, -2, "width");
-    lua_pushinteger(L, gfxlc->cvs_height);
-    lua_setfield(L, -2, "height");
-    lua_setfield(L, -2, "__index");
-
-    lua_pop(L, 1);
-
-    lua_game_t *canvas = (lua_game_t *)lua_newuserdata(L, sizeof(lua_game_t));
-    canvas->pixels = gfxlc->pixels;
-    canvas->w = gfxlc->cvs_width;
-    canvas->h = gfxlc->cvs_height;
-
-    luaL_getmetatable(L, GFXLC_GAME_MT);
-    lua_setmetatable(L, -2);
-    lua_setglobal(L, "gm");
-
-    return 0;
-}
-
-//// Utility functions
-int file_exists(const char *filename)
-{
-    FILE *file;
-    if ((file = fopen(filename, "r")) != NULL)
-    {
-        fclose(file);
-        return 1; // File exists
-    }
-    return 0; // File does not exist or cannot be opened
 }

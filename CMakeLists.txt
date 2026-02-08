@@ -7,6 +7,8 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 # Sources
 set(SRC_FILES
+    src/gfxlc_util.c
+    src/gfxlc_luabind.c
     src/main.c
 )
 
