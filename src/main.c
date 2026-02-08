@@ -84,15 +84,32 @@ static int lua_game_fill_rect(lua_State *L);
 static int register_game_api(lua_State *L, gfxlc_t *gfxlc);
 static time_t get_file_mtime(const char *path);
 
+//// Utility functions
+// Function to check if a file exists
+int file_exists(const char *filename);
+
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
+    char *lua_file = NULL;
+
+    // Get the current directory, to load game.lua if found in the directory
+    const char *current_dir = SDL_GetCurrentDirectory();
+    SDL_Log("Current directory: %s\n", current_dir);
+
+    // If the file "game.lua" exists we are good to go
+    if (file_exists("game.lua"))
     {
-        SDL_Log("usage: %s script.lua\n", argv[0]);
+        SDL_Log("Found game.lua in current directory, loading it.\n");
+        lua_file = "game.lua";
+    }
+
+    // If there is no game.lua file we print an error and get out
+    if (lua_file == NULL)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No game.lua file found in the current directory.\n");
         return 1;
     }
 
-    char *lua_file = argv[1];
     gfxlc_t *gfxctx = (gfxlc_t *)calloc(sizeof(gfxlc_t), 1);
     if (gfxctx == NULL)
     {
@@ -594,4 +611,16 @@ static int register_game_api(lua_State *L, gfxlc_t *gfxlc)
     lua_setglobal(L, "gm");
 
     return 0;
+}
+
+//// Utility functions
+int file_exists(const char *filename)
+{
+    FILE *file;
+    if ((file = fopen(filename, "r")) != NULL)
+    {
+        fclose(file);
+        return 1; // File exists
+    }
+    return 0; // File does not exist or cannot be opened
 }
