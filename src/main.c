@@ -10,6 +10,7 @@
 #include "gfxlc_util.h"
 #include "gfxlc_context.h"
 #include "gfxlc_lua.h"
+#include "gfxlc_fps.h"
 
 // statusbar height
 #define SB_H 16
@@ -18,11 +19,9 @@
 #define GFX_H 360 - SB_H
 
 int gfxlc_init(gfxlc_t *gfxlc);
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx);
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
 int load_fonts(gfxlc_t *gfxlc);
-void init_fps_texture(gfxlc_t *gfxlc);
-void draw_fps(gfxlc_t *gfxlc);
 
 int main(int argc, char *argv[])
 {
@@ -64,13 +63,24 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    gfxlc_fps_t *fps = NULL;
+    if (gfxlc_fps_init(&fps))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize FPS tracking.\n");
+        gfxlc_lua_shutdown(lua_ctx);
+        gfxlc_shutdown(gfxctx);
+        free(gfxctx);
+        return 1;
+    }
+
     // load the initial script (if any)
     gfxlc_lua_load_file(lua_ctx);
 
-    gfxlc_draw(gfxctx, lua_ctx);
+    gfxlc_draw(gfxctx, lua_ctx, fps);
 
     gfxlc_lua_shutdown(lua_ctx);
     gfxlc_shutdown(gfxctx);
+    gfxlc_fps_shutdown(fps);
 
     free(gfxctx);
     return 0;
@@ -120,7 +130,6 @@ int gfxlc_init(gfxlc_t *gfxlc)
     }
 
     load_fonts(gfxlc);
-    init_fps_texture(gfxlc);
 
     // create renderer
     gfxlc->renderer = SDL_CreateRenderer(gfxlc->window, NULL);
@@ -151,7 +160,7 @@ int gfxlc_init(gfxlc_t *gfxlc)
     return 0;
 }
 
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx)
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps)
 {
     uint64_t prev = SDL_GetTicks();
     while (gfxlc->quit == 0)
@@ -177,7 +186,7 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx)
         SDL_RenderClear(gfxlc->renderer);
 
         SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, (const SDL_FRect *)&(gfxlc->cvs_on_win_rect));
-        draw_fps(gfxlc);
+        gfxlc_fps_draw(fps, gfxlc->renderer, gfxlc->font, 10, 10);
         SDL_RenderPresent(gfxlc->renderer);
 
         while (SDL_PollEvent(&gfxlc->evt))
@@ -201,11 +210,6 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx)
 
 void gfxlc_shutdown(gfxlc_t *gfxlc)
 {
-    if (gfxlc->fpsTexture)
-    {
-        SDL_DestroyTexture(gfxlc->fpsTexture);
-    }
-
     if (gfxlc->texture)
     {
         SDL_DestroyTexture(gfxlc->texture);
@@ -259,50 +263,14 @@ int load_fonts(gfxlc_t *gfxlc)
     return 0;
 }
 
-void init_fps_texture(gfxlc_t *gfxlc)
-{
-    gfxlc->lastUpdateTime = 0;
-    gfxlc->frameCount = 0;
-    gfxlc->fpsTexture = NULL;
-    gfxlc->fpsRect.x = gfxlc->win_width - 100;
-    gfxlc->fpsRect.y = gfxlc->win_height - SB_H + 4;
-    gfxlc->fpsRect.w = 100;
-    gfxlc->fpsRect.h = SB_H - 8;
-    gfxlc->currentFPS = 0.0f;
-}
-
-void draw_fps(gfxlc_t *gfxlc)
-{
-    uint64_t currentTime = SDL_GetTicks();
-    gfxlc->frameCount++;
-
-    if (currentTime > gfxlc->lastUpdateTime + 500)
-    {
-        float elapsedSeconds = (currentTime - gfxlc->lastUpdateTime) / 1000.0f;
-        gfxlc->currentFPS = (elapsedSeconds > 0.0f) ? (gfxlc->frameCount / elapsedSeconds) : 0.0f;
-        gfxlc->frameCount = 0;
-        gfxlc->lastUpdateTime = currentTime;
-
-        if (gfxlc->fpsTexture)
-        {
-            SDL_DestroyTexture(gfxlc->fpsTexture);
-        }
-
-        char text[32];
-        snprintf(text, sizeof(text), "FPS: %.2f", gfxlc->currentFPS);
-        SDL_Color fg = {255, 255, 255, 255};
-        SDL_Surface *surf = TTF_RenderText_Blended(gfxlc->font, text, 0, fg);
-        if (surf)
-        {
-            gfxlc->fpsTexture = SDL_CreateTextureFromSurface(gfxlc->renderer, surf);
-            gfxlc->fpsRect.w = (float)surf->w;
-            gfxlc->fpsRect.h = (float)surf->h;
-            SDL_DestroySurface(surf);
-        }
-    }
-
-    if (gfxlc->fpsTexture)
-    {
-        SDL_RenderTexture(gfxlc->renderer, gfxlc->fpsTexture, NULL, &gfxlc->fpsRect);
-    }
-}
+// void init_fps_texture(gfxlc_t *gfxlc)
+// {
+//     gfxlc->lastUpdateTime = 0;
+//     gfxlc->frameCount = 0;
+//     gfxlc->fpsTexture = NULL;
+//     gfxlc->fpsRect.x = gfxlc->win_width - 100;
+//     gfxlc->fpsRect.y = gfxlc->win_height - SB_H + 4;
+//     gfxlc->fpsRect.w = 100;
+//     gfxlc->fpsRect.h = SB_H - 8;
+//     gfxlc->currentFPS = 0.0f;
+// }

@@ -37,12 +37,6 @@ typedef struct
     int win_width;
     int win_height;
 
-    // fps texture related state
-    int frameCount;
-    uint64_t lastUpdateTime;
-    SDL_Texture *fpsTexture;
-    SDL_FRect fpsRect;
-    float currentFPS;
 } gfxlc_t;
 
 #endif //__GFXLC_CONTEXT_H__
