@@ -1,0 +1,106 @@
+#include "gfxlc_console.h"
+
+int gfxlc_console_init(gfxlc_console_t **con)
+{
+    (*con) = (gfxlc_console_t *)calloc(sizeof(gfxlc_console_t), 1);
+    if ((*con) == NULL)
+    {
+        SDL_Log("Unable to allocate memory for gfxlc_console_t.\n");
+        return 1;
+    }
+
+    gfxlc_console_t *c = (*con);
+    c->textSurface = NULL;
+    c->textTexture = NULL;
+    c->show = false;
+    c->text[0] = '\0';
+    const char *base_path = SDL_GetBasePath();
+    if (base_path)
+    {
+        char font_path[1024];
+
+        SDL_snprintf(font_path, sizeof(font_path), "%s/SourceCodePro-Regular.ttf", base_path);
+
+        c->font = TTF_OpenFont(font_path, 10.0f);
+        if (c->font == NULL)
+        {
+            SDL_Log("Failed to load font: %s", SDL_GetError());
+            return -1;
+        }
+        SDL_Log("Loading font from: %s\n", font_path);
+    }
+    return 0;
+}
+
+bool gfxlc_console_toggle(gfxlc_console_t *con)
+{
+    con->show = !con->show;
+    return con->show;
+}
+
+void gfxlc_console_show(gfxlc_console_t *con)
+{
+    con->show = true;
+}
+
+void gfxlc_console_hide(gfxlc_console_t *con)
+{
+    con->show = false;
+}
+
+bool gfxlc_console_shown(gfxlc_console_t *con)
+{
+    return con->show;
+}
+
+void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
+{
+    if (text == NULL || text[0] == '\0')
+    {
+        return;
+    }
+    // currently just replace all the text.
+    // only the first 1023 chars of the text will be copied to the console buffer, and it will be null-terminated.
+    // TODO append text instead of replace (for history)
+    SDL_strlcpy(con->text, text, sizeof(con->text));
+}
+
+void gfxlc_console_draw(gfxlc_console_t *con, SDL_Renderer *renderer)
+{
+    if (!con->show || con->text[0] == '\0')
+    {
+        return;
+    }
+
+    // create text surface and texture if not already created
+    if (!con->textSurface)
+    {
+        SDL_Color fg = {255, 255, 255, 255};
+        con->textSurface = TTF_RenderText_Blended_Wrapped(con->font, con->text, strlen(con->text), fg, 400);
+        if (con->textSurface)
+        {
+            con->textTexture = SDL_CreateTextureFromSurface(renderer, con->textSurface);
+            SDL_SetTextureScaleMode(con->textTexture, SDL_SCALEMODE_PIXELART);
+        }
+    }
+
+    if (con->textTexture)
+    {
+        SDL_FRect dstRect = {10, 40, con->textSurface->w, con->textSurface->h};
+        SDL_RenderTexture(renderer, con->textTexture, NULL, &dstRect);
+    }
+}
+
+void gfxlc_console_shutdown(gfxlc_console_t *con)
+{
+    if (con->textTexture)
+    {
+        SDL_DestroyTexture(con->textTexture);
+        con->textTexture = NULL;
+    }
+    if (con->textSurface)
+    {
+        SDL_DestroySurface(con->textSurface);
+        con->textSurface = NULL;
+    }
+}

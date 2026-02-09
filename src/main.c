@@ -11,6 +11,7 @@
 #include "gfxlc_context.h"
 #include "gfxlc_lua.h"
 #include "gfxlc_fps.h"
+#include "gfxlc_console.h"
 
 #define CNV_W 320
 #define CNV_H 240
@@ -19,7 +20,7 @@
 #define GFX_H (CNV_H * 2)
 
 int gfxlc_init(gfxlc_t *gfxlc);
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps);
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_console_t *console);
 void gfxlc_shutdown(gfxlc_t *gfxlc);
 int load_fonts(gfxlc_t *gfxlc);
 
@@ -54,10 +55,22 @@ int main(int argc, char *argv[])
 
     gfxlc_init(gfxctx);
 
+    // initialize console
+    gfxlc_console_t *console = NULL;
+    if (gfxlc_console_init(&console))
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize console.\n");
+        gfxlc_shutdown(gfxctx);
+        free(gfxctx);
+        return 1;
+    }
+    gfxlc_console_add_text(console, "Console initialized. Press ` to toggle.");
+
     gfxlc_lua_t *lua_ctx = NULL;
     if (!gfxlc_lua_init(&lua_ctx, lua_file, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height))
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
+        gfxlc_console_shutdown(console);
         gfxlc_shutdown(gfxctx);
         free(gfxctx);
         return 1;
@@ -67,6 +80,7 @@ int main(int argc, char *argv[])
     if (gfxlc_fps_init(&fps))
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize FPS tracking.\n");
+        gfxlc_console_shutdown(console);
         gfxlc_lua_shutdown(lua_ctx);
         gfxlc_shutdown(gfxctx);
         free(gfxctx);
@@ -76,11 +90,13 @@ int main(int argc, char *argv[])
     // load the initial script (if any)
     gfxlc_lua_load_file(lua_ctx);
 
-    gfxlc_draw(gfxctx, lua_ctx, fps);
+    // draw loop
+    gfxlc_draw(gfxctx, lua_ctx, fps, console);
 
     gfxlc_lua_shutdown(lua_ctx);
     gfxlc_shutdown(gfxctx);
     gfxlc_fps_shutdown(fps);
+    gfxlc_console_shutdown(console);
 
     free(gfxctx);
     return 0;
@@ -163,7 +179,7 @@ int gfxlc_init(gfxlc_t *gfxlc)
     return 0;
 }
 
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps)
+int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_console_t *console)
 {
     uint64_t prev = SDL_GetTicks();
     while (gfxlc->quit == 0)
@@ -190,6 +206,7 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps)
 
         SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, (const SDL_FRect *)&(gfxlc->cvs_on_win_rect));
         gfxlc_fps_draw(fps, gfxlc->renderer, gfxlc->font, 10, 10);
+        gfxlc_console_draw(console, gfxlc->renderer);
         SDL_RenderPresent(gfxlc->renderer);
 
         while (SDL_PollEvent(&gfxlc->evt))
@@ -205,6 +222,17 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps)
                 SDL_Log("Escape key pressed, quitting.");
                 // Set your loop condition to false
                 gfxlc->quit = 1;
+            }
+
+            // Check if the pressed key is the backtick (`) key
+            if (gfxlc->evt.type == SDL_EVENT_KEY_DOWN)
+            {
+
+                if (gfxlc->evt.key.key == SDLK_GRAVE)
+                {
+                    bool console_shown = gfxlc_console_toggle(console);
+                    SDL_Log("Toggled console, now %s", console_shown ? "hidden" : "shown");
+                }
             }
         }
     }
