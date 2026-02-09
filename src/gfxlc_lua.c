@@ -69,33 +69,51 @@ void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx)
     }
 }
 
-void gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx)
+gfxlc_lua_error_t gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx)
 {
+    gfxlc_lua_error_t err;
+    err.reloaded = false;
+
     if (luaL_loadfile(lua_ctx->L, lua_ctx->lua_file) != LUA_OK)
     {
-        SDL_Log("lua load error: %s\n", lua_tostring(lua_ctx->L, -1));
+        err.code = 1;
+        const char *lua_err_msg = lua_tostring(lua_ctx->L, -1);
+        snprintf(err.message, sizeof(err.message), "lua load error: %s", lua_err_msg);
+        SDL_Log("lua load error: %s\n", lua_err_msg);
         lua_pop(lua_ctx->L, 1);
-        return;
+        return err;
     }
 
     if (lua_pcall(lua_ctx->L, 0, 0, 0) != LUA_OK)
     {
-        SDL_Log("lua runtime error: %s\n", lua_tostring(lua_ctx->L, -1));
+        err.code = 2;
+        const char *lua_err_msg = lua_tostring(lua_ctx->L, -1);
+        snprintf(err.message, sizeof(err.message), "lua runtime error: %s", lua_err_msg);
+        SDL_Log("lua runtime error: %s\n", lua_err_msg);
         lua_pop(lua_ctx->L, 1);
-        return;
+        return err;
     }
 
     lua_getglobal(lua_ctx->L, "draw");
     if (!lua_isfunction(lua_ctx->L, -1))
     {
+        err.code = 3;
+        snprintf(err.message, sizeof(err.message), "script must define draw(t)");
+
         SDL_Log("error: script must define draw(t)\n");
+        lua_pop(lua_ctx->L, 1);
+        return err;
     }
     lua_pop(lua_ctx->L, 1);
 
     lua_ctx->lua_last_mtime = get_file_mtime(lua_ctx->lua_file);
+    err.code = 0;
+    err.message[0] = '\0';
+    err.reloaded = true;
+    return err;
 }
 
-int gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
+gfxlc_lua_error_t gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
 {
     // hot-reload lua script if modified
     time_t mtime = get_file_mtime(lua_ctx->lua_file);
@@ -104,10 +122,13 @@ int gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
         printf("reloading %s\n", lua_ctx->lua_file);
 
         lua_ctx->lua_last_mtime = mtime;
-        gfxlc_lua_load_file(lua_ctx);
-        return 1;
+        return gfxlc_lua_load_file(lua_ctx);
     }
-    return 0;
+    gfxlc_lua_error_t err;
+    err.code = 0;
+    err.message[0] = '\0';
+    err.reloaded = false;
+    return err;
 }
 
 int gfxlc_lua_call_draw(gfxlc_lua_t *lua_ctx, float dt)

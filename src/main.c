@@ -185,7 +185,18 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_con
     while (gfxlc->quit == 0)
     {
         // lua hot reload
-        gfxlc_lua_hot_reload(lua_ctx);
+        gfxlc_lua_error_t err = gfxlc_lua_hot_reload(lua_ctx);
+        if (err.code != 0)
+        {
+            SDL_Log("Lua hot reload error: %s\n", err.message);
+            gfxlc_console_add_text(console, err.message);
+            gfxlc_console_show(console);
+        }
+        else if (err.reloaded && gfxlc_console_shown(console))
+        {
+            gfxlc_console_add_text(console, "Lua script reloaded successfully.");
+            gfxlc_console_hide(console);
+        }
 
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
