@@ -1,5 +1,6 @@
-#include "gfxlc_fps.h"
+#include <stdlib.h>
 #include <stdio.h>
+#include "gfxlc_fps.h"
 
 int gfxlc_fps_init(gfxlc_fps_t **fps)
 {
