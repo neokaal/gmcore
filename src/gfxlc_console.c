@@ -1,5 +1,19 @@
 #include "gfxlc_console.h"
 
+static void gfxlc_console_destroy_text_cache(gfxlc_console_t *con)
+{
+    if (con->textTexture)
+    {
+        SDL_DestroyTexture(con->textTexture);
+        con->textTexture = NULL;
+    }
+    if (con->textSurface)
+    {
+        SDL_DestroySurface(con->textSurface);
+        con->textSurface = NULL;
+    }
+}
+
 int gfxlc_console_init(gfxlc_console_t **con)
 {
     (*con) = (gfxlc_console_t *)calloc(sizeof(gfxlc_console_t), 1);
@@ -13,6 +27,8 @@ int gfxlc_console_init(gfxlc_console_t **con)
     c->textSurface = NULL;
     c->textTexture = NULL;
     c->show = false;
+    c->overlay_enabled = true;
+    c->overlay_color = (SDL_Color){0, 0, 0, 160};
     c->text[0] = '\0';
     const char *base_path = SDL_GetBasePath();
     if (base_path)
@@ -53,12 +69,24 @@ bool gfxlc_console_shown(gfxlc_console_t *con)
     return con->show;
 }
 
+void gfxlc_console_set_overlay(gfxlc_console_t *con, bool enabled, SDL_Color color)
+{
+    con->overlay_enabled = enabled;
+    con->overlay_color = color;
+}
+
 void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
 {
     if (text == NULL || text[0] == '\0')
     {
         return;
     }
+
+    if (SDL_strcmp(con->text, text) != 0)
+    {
+        gfxlc_console_destroy_text_cache(con);
+    }
+
     // currently just replace all the text.
     // only the first 1023 chars of the text will be copied to the console buffer, and it will be null-terminated.
     // TODO append text instead of replace (for history)
@@ -67,7 +95,43 @@ void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
 
 void gfxlc_console_draw(gfxlc_console_t *con, SDL_Renderer *renderer)
 {
-    if (!con->show || con->text[0] == '\0')
+    if (!con->show)
+    {
+        return;
+    }
+
+    if (con->overlay_enabled)
+    {
+        int width = 0;
+        int height = 0;
+        if (SDL_GetCurrentRenderOutputSize(renderer, &width, &height))
+        {
+            Uint8 prev_r = 0;
+            Uint8 prev_g = 0;
+            Uint8 prev_b = 0;
+            Uint8 prev_a = 0;
+            SDL_BlendMode prev_blend = SDL_BLENDMODE_NONE;
+
+            SDL_GetRenderDrawColor(renderer, &prev_r, &prev_g, &prev_b, &prev_a);
+            SDL_GetRenderDrawBlendMode(renderer, &prev_blend);
+
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(
+                renderer,
+                con->overlay_color.r,
+                con->overlay_color.g,
+                con->overlay_color.b,
+                con->overlay_color.a);
+
+            SDL_FRect overlay_rect = {0.0f, 0.0f, (float)width, (float)height};
+            SDL_RenderFillRect(renderer, &overlay_rect);
+
+            SDL_SetRenderDrawColor(renderer, prev_r, prev_g, prev_b, prev_a);
+            SDL_SetRenderDrawBlendMode(renderer, prev_blend);
+        }
+    }
+
+    if (con->text[0] == '\0')
     {
         return;
     }
@@ -93,14 +157,5 @@ void gfxlc_console_draw(gfxlc_console_t *con, SDL_Renderer *renderer)
 
 void gfxlc_console_shutdown(gfxlc_console_t *con)
 {
-    if (con->textTexture)
-    {
-        SDL_DestroyTexture(con->textTexture);
-        con->textTexture = NULL;
-    }
-    if (con->textSurface)
-    {
-        SDL_DestroySurface(con->textSurface);
-        con->textSurface = NULL;
-    }
+    gfxlc_console_destroy_text_cache(con);
 }

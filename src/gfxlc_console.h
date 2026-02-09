@@ -11,6 +11,8 @@ typedef struct
     SDL_Texture *textTexture;
     TTF_Font *font;
     bool show;
+    bool overlay_enabled;
+    SDL_Color overlay_color;
     char text[1024];
 } gfxlc_console_t;
 
@@ -20,6 +22,7 @@ bool gfxlc_console_toggle(gfxlc_console_t *con);
 void gfxlc_console_show(gfxlc_console_t *con);
 void gfxlc_console_hide(gfxlc_console_t *con);
 bool gfxlc_console_shown(gfxlc_console_t *con);
+void gfxlc_console_set_overlay(gfxlc_console_t *con, bool enabled, SDL_Color color);
 
 void gfxlc_console_add_text(gfxlc_console_t *con, const char *text);
 
