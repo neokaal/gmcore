@@ -22,7 +22,7 @@ gmcore prioritizes minimal design, clarity, simplicity, and direct control.
 
 - create a project directory
 - place a `game.lua` file in the directory
-- run `gm` in the directory
+- run `gmcore` in the directory
 - a game window opens
 - edit `game.lua` and see the changes immediately
 - iterate...

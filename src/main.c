@@ -38,26 +38,6 @@ int load_fonts(gm_t *gfxlc);
 
 int main(int argc, char *argv[])
 {
-    char *lua_file = NULL;
-
-    // Get the current directory, to load game.lua if found in the directory
-    const char *current_dir = SDL_GetCurrentDirectory();
-    SDL_Log("Current directory: %s\n", current_dir);
-
-    // If the file "game.lua" exists we are good to go
-    if (file_exists("game.lua"))
-    {
-        SDL_Log("Found game.lua in current directory, loading it.\n");
-        lua_file = "game.lua";
-    }
-
-    // If there is no game.lua file we print an error and get out
-    if (lua_file == NULL)
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No game.lua file found in the current directory.\n");
-        return 1;
-    }
-
     gm_t *gfxctx = (gm_t *)calloc(sizeof(gm_t), 1);
     if (gfxctx == NULL)
     {
@@ -79,10 +59,12 @@ int main(int argc, char *argv[])
     gm_console_add_text(console, "Console initialized. Press ` to toggle.");
 
     gm_lua_t *lua_ctx = NULL;
-    if (!gm_lua_init(&lua_ctx, lua_file, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height))
+    gm_lua_error_t err = gm_lua_init(&lua_ctx, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height);
+    if (err.code > 100)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
-        gm_console_shutdown(console);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context: %s\n", err.message);
+        gm_console_add_text(console, err.message);
+        gm_console_show(console);
         gm_shutdown(gfxctx);
         free(gfxctx);
         return 1;

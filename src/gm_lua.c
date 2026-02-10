@@ -9,33 +9,56 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-int gm_lua_init(gm_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int width, int height)
+gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, uint32_t *pixels, int width, int height)
 {
+    char *lua_file = "game.lua";
+    bool file_found = false;
+    gm_lua_error_t err;
+    err.reloaded = false;
+    err.code = 0;
+    err.message[0] = '\0';
+
+    // Get the current directory, to load game.lua if found in the directory
+    const char *current_dir = SDL_GetCurrentDirectory();
+    SDL_Log("Current directory: %s\n", current_dir);
+
+    // If the file "game.lua" exists we are good to go
+    if (file_exists("game.lua"))
+    {
+        SDL_Log("Found game.lua in current directory, loading it.\n");
+        // log to console as well
+        err.code = 10;
+        snprintf(err.message, sizeof(err.message), "Found game.lua in current directory, loading it.");
+        file_found = true;
+    }
+
+    // If there is no game.lua file we print an error and get out
+    if (!file_found)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No game.lua file found in the current directory.\n");
+        err.code = 11;
+        snprintf(err.message, sizeof(err.message), "No game.lua file found in the current directory. Create one.");
+    }
+
     (*lua_ctx) = (gm_lua_t *)calloc(sizeof(gm_lua_t), 1);
     if ((*lua_ctx) == NULL)
     {
         SDL_Log("Unable to allocate memory for gm_lua_t.\n");
-        return 1;
+        err.code = 100;
+        snprintf(err.message, sizeof(err.message), "Unable to allocate memory for Lua context.");
     }
 
     gm_lua_t *lc = (*lua_ctx);
 
-    if (lua_file == NULL)
-    {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No Lua file specified for gm_lua_init.\n");
-        free(lc);
-        return 1;
-    }
-    else
-    {
-        lc->lua_file = strdup(lua_file);
-    }
+    lc->lua_file = strdup(lua_file);
 
     lc->L = luaL_newstate();
     if (!lc->L)
     {
         SDL_Log("failed to create lua state\n");
-        return 1;
+        err.code = 101;
+        snprintf(err.message, sizeof(err.message), "Failed to create Lua state.");
+        return err;
     }
 
     /* open base + math + table */
@@ -51,7 +74,7 @@ int gm_lua_init(gm_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int 
     // register game API and load the initial script
     gm_lua_register_game_api(lc->L, pixels, width, height);
 
-    return 1;
+    return err;
 }
 
 void gm_lua_shutdown(gm_lua_t *lua_ctx)
