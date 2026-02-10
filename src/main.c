@@ -1,4 +1,16 @@
-// minimal SDL3 program
+// Copyright (c) 2026 Neokaal Tech Private Limited
+// Licensed under the MIT license. See LICENSE file in the project root for details.
+
+/**
+ * @file main.c
+ * @author Abhishek Mishra
+ * @brief Main program for gmcore
+ * @version 0.1
+ * @date 2026-02-10
+ *
+ * @copyright Copyright (c) 2026 Neokaal Tech Private Limited
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
