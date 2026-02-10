@@ -1,5 +1,5 @@
-#ifndef __GFCLC_UTIL_H__
-#define __GFCLC_UTIL_H__
+#ifndef __GM_UTIL_H__
+#define __GM_UTIL_H__
 
 #include <time.h>
 
@@ -8,4 +8,4 @@ int file_exists(const char *filename);
 
 time_t get_file_mtime(const char *path);
 
-#endif // __GFCLC_UTIL_H__
+#endif // __GM_UTIL_H__

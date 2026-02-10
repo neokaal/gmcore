@@ -1,6 +1,6 @@
-#include "gfxlc_console.h"
+#include "gm_console.h"
 
-static void gfxlc_console_destroy_text_cache(gfxlc_console_t *con)
+static void gm_console_destroy_text_cache(gm_console_t *con)
 {
     if (con->textTexture)
     {
@@ -14,16 +14,16 @@ static void gfxlc_console_destroy_text_cache(gfxlc_console_t *con)
     }
 }
 
-int gfxlc_console_init(gfxlc_console_t **con)
+int gm_console_init(gm_console_t **con)
 {
-    (*con) = (gfxlc_console_t *)calloc(sizeof(gfxlc_console_t), 1);
+    (*con) = (gm_console_t *)calloc(sizeof(gm_console_t), 1);
     if ((*con) == NULL)
     {
-        SDL_Log("Unable to allocate memory for gfxlc_console_t.\n");
+        SDL_Log("Unable to allocate memory for gm_console_t.\n");
         return 1;
     }
 
-    gfxlc_console_t *c = (*con);
+    gm_console_t *c = (*con);
     c->textSurface = NULL;
     c->textTexture = NULL;
     c->show = false;
@@ -48,34 +48,34 @@ int gfxlc_console_init(gfxlc_console_t **con)
     return 0;
 }
 
-bool gfxlc_console_toggle(gfxlc_console_t *con)
+bool gm_console_toggle(gm_console_t *con)
 {
     con->show = !con->show;
     return con->show;
 }
 
-void gfxlc_console_show(gfxlc_console_t *con)
+void gm_console_show(gm_console_t *con)
 {
     con->show = true;
 }
 
-void gfxlc_console_hide(gfxlc_console_t *con)
+void gm_console_hide(gm_console_t *con)
 {
     con->show = false;
 }
 
-bool gfxlc_console_shown(gfxlc_console_t *con)
+bool gm_console_shown(gm_console_t *con)
 {
     return con->show;
 }
 
-void gfxlc_console_set_overlay(gfxlc_console_t *con, bool enabled, SDL_Color color)
+void gm_console_set_overlay(gm_console_t *con, bool enabled, SDL_Color color)
 {
     con->overlay_enabled = enabled;
     con->overlay_color = color;
 }
 
-void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
+void gm_console_add_text(gm_console_t *con, const char *text)
 {
     if (text == NULL || text[0] == '\0')
     {
@@ -84,7 +84,7 @@ void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
 
     if (SDL_strcmp(con->text, text) != 0)
     {
-        gfxlc_console_destroy_text_cache(con);
+        gm_console_destroy_text_cache(con);
     }
 
     // currently just replace all the text.
@@ -93,7 +93,7 @@ void gfxlc_console_add_text(gfxlc_console_t *con, const char *text)
     SDL_strlcpy(con->text, text, sizeof(con->text));
 }
 
-void gfxlc_console_draw(gfxlc_console_t *con, SDL_Renderer *renderer)
+void gm_console_draw(gm_console_t *con, SDL_Renderer *renderer)
 {
     if (!con->show)
     {
@@ -155,7 +155,7 @@ void gfxlc_console_draw(gfxlc_console_t *con, SDL_Renderer *renderer)
     }
 }
 
-void gfxlc_console_shutdown(gfxlc_console_t *con)
+void gm_console_shutdown(gm_console_t *con)
 {
-    gfxlc_console_destroy_text_cache(con);
+    gm_console_destroy_text_cache(con);
 }

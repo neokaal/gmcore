@@ -1,17 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "gfxlc_fps.h"
+#include "gm_fps.h"
 
-int gfxlc_fps_init(gfxlc_fps_t **fps)
+int gm_fps_init(gm_fps_t **fps)
 {
-    (*fps) = (gfxlc_fps_t *)calloc(sizeof(gfxlc_fps_t), 1);
+    (*fps) = (gm_fps_t *)calloc(sizeof(gm_fps_t), 1);
     if ((*fps) == NULL)
     {
-        printf("Unable to allocate memory for gfxlc_fps_t.\n");
+        printf("Unable to allocate memory for gm_fps_t.\n");
         return 1;
     }
 
-    gfxlc_fps_t *f = (*fps);
+    gm_fps_t *f = (*fps);
     f->frameCount = 0;
     f->lastUpdateTime = 0;
     f->fpsTexture = NULL;
@@ -20,7 +20,7 @@ int gfxlc_fps_init(gfxlc_fps_t **fps)
     return 0;
 }
 
-void gfxlc_fps_draw(gfxlc_fps_t *fps, SDL_Renderer *renderer, TTF_Font *font, int x, int y)
+void gm_fps_draw(gm_fps_t *fps, SDL_Renderer *renderer, TTF_Font *font, int x, int y)
 {
     uint64_t currentTime = SDL_GetTicks();
     fps->frameCount++;
@@ -61,7 +61,7 @@ void gfxlc_fps_draw(gfxlc_fps_t *fps, SDL_Renderer *renderer, TTF_Font *font, in
     }
 }
 
-void gfxlc_fps_shutdown(gfxlc_fps_t *fps)
+void gm_fps_shutdown(gm_fps_t *fps)
 {
     if (fps)
     {

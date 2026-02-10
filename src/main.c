@@ -7,11 +7,11 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include "gfxlc_util.h"
-#include "gfxlc_context.h"
-#include "gfxlc_lua.h"
-#include "gfxlc_fps.h"
-#include "gfxlc_console.h"
+#include "gm_util.h"
+#include "gm_context.h"
+#include "gm_lua.h"
+#include "gm_fps.h"
+#include "gm_console.h"
 
 #define CNV_W 320
 #define CNV_H 240
@@ -19,10 +19,10 @@
 #define GFX_W (CNV_W * 2)
 #define GFX_H (CNV_H * 2)
 
-int gfxlc_init(gfxlc_t *gfxlc);
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_console_t *console);
-void gfxlc_shutdown(gfxlc_t *gfxlc);
-int load_fonts(gfxlc_t *gfxlc);
+int gm_init(gm_t *gfxlc);
+int gm_draw(gm_t *gfxlc, gm_lua_t *lua_ctx, gm_fps_t *fps, gm_console_t *console);
+void gm_shutdown(gm_t *gfxlc);
+int load_fonts(gm_t *gfxlc);
 
 int main(int argc, char *argv[])
 {
@@ -46,65 +46,65 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    gfxlc_t *gfxctx = (gfxlc_t *)calloc(sizeof(gfxlc_t), 1);
+    gm_t *gfxctx = (gm_t *)calloc(sizeof(gm_t), 1);
     if (gfxctx == NULL)
     {
         printf("Unable to allocate memory.\n");
         return -1;
     }
 
-    gfxlc_init(gfxctx);
+    gm_init(gfxctx);
 
     // initialize console
-    gfxlc_console_t *console = NULL;
-    if (gfxlc_console_init(&console))
+    gm_console_t *console = NULL;
+    if (gm_console_init(&console))
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize console.\n");
-        gfxlc_shutdown(gfxctx);
+        gm_shutdown(gfxctx);
         free(gfxctx);
         return 1;
     }
-    gfxlc_console_add_text(console, "Console initialized. Press ` to toggle.");
+    gm_console_add_text(console, "Console initialized. Press ` to toggle.");
 
-    gfxlc_lua_t *lua_ctx = NULL;
-    if (!gfxlc_lua_init(&lua_ctx, lua_file, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height))
+    gm_lua_t *lua_ctx = NULL;
+    if (!gm_lua_init(&lua_ctx, lua_file, gfxctx->pixels, gfxctx->cvs_width, gfxctx->cvs_height))
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context.\n");
-        gfxlc_console_shutdown(console);
-        gfxlc_shutdown(gfxctx);
+        gm_console_shutdown(console);
+        gm_shutdown(gfxctx);
         free(gfxctx);
         return 1;
     }
 
-    gfxlc_fps_t *fps = NULL;
-    if (gfxlc_fps_init(&fps))
+    gm_fps_t *fps = NULL;
+    if (gm_fps_init(&fps))
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize FPS tracking.\n");
-        gfxlc_console_shutdown(console);
-        gfxlc_lua_shutdown(lua_ctx);
-        gfxlc_shutdown(gfxctx);
+        gm_console_shutdown(console);
+        gm_lua_shutdown(lua_ctx);
+        gm_shutdown(gfxctx);
         free(gfxctx);
         return 1;
     }
 
     // load the initial script (if any)
-    gfxlc_lua_load_file(lua_ctx);
+    gm_lua_load_file(lua_ctx);
 
     // draw loop
-    gfxlc_draw(gfxctx, lua_ctx, fps, console);
+    gm_draw(gfxctx, lua_ctx, fps, console);
 
-    gfxlc_lua_shutdown(lua_ctx);
-    gfxlc_shutdown(gfxctx);
-    gfxlc_fps_shutdown(fps);
-    gfxlc_console_shutdown(console);
+    gm_lua_shutdown(lua_ctx);
+    gm_shutdown(gfxctx);
+    gm_fps_shutdown(fps);
+    gm_console_shutdown(console);
 
     free(gfxctx);
     return 0;
 }
 
-int gfxlc_init(gfxlc_t *gfxlc)
+int gm_init(gm_t *gfxlc)
 {
-    memset(gfxlc, 0, sizeof(gfxlc_t));
+    memset(gfxlc, 0, sizeof(gm_t));
 
     // dimensions of the canvas
     gfxlc->cvs_width = CNV_W;
@@ -179,28 +179,28 @@ int gfxlc_init(gfxlc_t *gfxlc)
     return 0;
 }
 
-int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_console_t *console)
+int gm_draw(gm_t *gfxlc, gm_lua_t *lua_ctx, gm_fps_t *fps, gm_console_t *console)
 {
     uint64_t prev = SDL_GetTicks();
     while (gfxlc->quit == 0)
     {
         // lua hot reload
-        gfxlc_lua_error_t err = gfxlc_lua_hot_reload(lua_ctx);
+        gm_lua_error_t err = gm_lua_hot_reload(lua_ctx);
         if (err.code != 0)
         {
             SDL_Log("Lua hot reload error: %s\n", err.message);
-            gfxlc_console_add_text(console, err.message);
-            gfxlc_console_show(console);
+            gm_console_add_text(console, err.message);
+            gm_console_show(console);
         }
-        else if (err.reloaded && gfxlc_console_shown(console))
+        else if (err.reloaded && gm_console_shown(console))
         {
-            gfxlc_console_add_text(console, "Lua script reloaded successfully.");
-            gfxlc_console_hide(console);
+            gm_console_add_text(console, "Lua script reloaded successfully.");
+            gm_console_hide(console);
         }
 
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
-        if (!gfxlc_lua_call_draw(lua_ctx, dt))
+        if (!gm_lua_call_draw(lua_ctx, dt))
         {
             break;
         }
@@ -216,8 +216,8 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_con
         SDL_RenderClear(gfxlc->renderer);
 
         SDL_RenderTexture(gfxlc->renderer, gfxlc->texture, NULL, (const SDL_FRect *)&(gfxlc->cvs_on_win_rect));
-        gfxlc_fps_draw(fps, gfxlc->renderer, gfxlc->font, 10, 10);
-        gfxlc_console_draw(console, gfxlc->renderer);
+        gm_fps_draw(fps, gfxlc->renderer, gfxlc->font, 10, 10);
+        gm_console_draw(console, gfxlc->renderer);
         SDL_RenderPresent(gfxlc->renderer);
 
         while (SDL_PollEvent(&gfxlc->evt))
@@ -241,7 +241,7 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_con
 
                 if (gfxlc->evt.key.key == SDLK_GRAVE)
                 {
-                    bool console_shown = gfxlc_console_toggle(console);
+                    bool console_shown = gm_console_toggle(console);
                     SDL_Log("Toggled console, now %s", console_shown ? "hidden" : "shown");
                 }
             }
@@ -250,7 +250,7 @@ int gfxlc_draw(gfxlc_t *gfxlc, gfxlc_lua_t *lua_ctx, gfxlc_fps_t *fps, gfxlc_con
     return 0;
 }
 
-void gfxlc_shutdown(gfxlc_t *gfxlc)
+void gm_shutdown(gm_t *gfxlc)
 {
     if (gfxlc->texture)
     {
@@ -279,7 +279,7 @@ void gfxlc_shutdown(gfxlc_t *gfxlc)
     SDL_Quit();
 }
 
-int load_fonts(gfxlc_t *gfxlc)
+int load_fonts(gm_t *gfxlc)
 {
     if (!TTF_Init())
     {

@@ -1,5 +1,5 @@
-#ifndef __GFXLC_CONTEXT_H__
-#define __GFXLC_CONTEXT_H__
+#ifndef __GM_CONTEXT_H__
+#define __GM_CONTEXT_H__
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -32,6 +32,6 @@ typedef struct
     int win_width;
     int win_height;
 
-} gfxlc_t;
+} gm_t;
 
-#endif //__GFXLC_CONTEXT_H__
+#endif //__GM_CONTEXT_H__

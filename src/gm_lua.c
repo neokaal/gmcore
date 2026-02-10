@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "gfxlc_lua.h"
+#include "gm_lua.h"
 
 static inline uint32_t pack_rgba(int r, int g, int b, int a)
 {
@@ -9,20 +9,20 @@ static inline uint32_t pack_rgba(int r, int g, int b, int a)
            (uint32_t)(a & 0xFF);
 }
 
-int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int width, int height)
+int gm_lua_init(gm_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels, int width, int height)
 {
-    (*lua_ctx) = (gfxlc_lua_t *)calloc(sizeof(gfxlc_lua_t), 1);
+    (*lua_ctx) = (gm_lua_t *)calloc(sizeof(gm_lua_t), 1);
     if ((*lua_ctx) == NULL)
     {
-        SDL_Log("Unable to allocate memory for gfxlc_lua_t.\n");
+        SDL_Log("Unable to allocate memory for gm_lua_t.\n");
         return 1;
     }
 
-    gfxlc_lua_t *lc = (*lua_ctx);
+    gm_lua_t *lc = (*lua_ctx);
 
     if (lua_file == NULL)
     {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No Lua file specified for gfxlc_lua_init.\n");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No Lua file specified for gm_lua_init.\n");
         free(lc);
         return 1;
     }
@@ -49,12 +49,12 @@ int gfxlc_lua_init(gfxlc_lua_t **lua_ctx, const char *lua_file, uint32_t *pixels
     lua_pop(lc->L, 1);
 
     // register game API and load the initial script
-    gfxlc_lua_register_game_api(lc->L, pixels, width, height);
+    gm_lua_register_game_api(lc->L, pixels, width, height);
 
     return 1;
 }
 
-void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx)
+void gm_lua_shutdown(gm_lua_t *lua_ctx)
 {
     if (lua_ctx)
     {
@@ -70,9 +70,9 @@ void gfxlc_lua_shutdown(gfxlc_lua_t *lua_ctx)
     }
 }
 
-gfxlc_lua_error_t gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx)
+gm_lua_error_t gm_lua_load_file(gm_lua_t *lua_ctx)
 {
-    gfxlc_lua_error_t err;
+    gm_lua_error_t err;
     err.reloaded = false;
 
     if (luaL_loadfile(lua_ctx->L, lua_ctx->lua_file) != LUA_OK)
@@ -114,7 +114,7 @@ gfxlc_lua_error_t gfxlc_lua_load_file(gfxlc_lua_t *lua_ctx)
     return err;
 }
 
-gfxlc_lua_error_t gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
+gm_lua_error_t gm_lua_hot_reload(gm_lua_t *lua_ctx)
 {
     // hot-reload lua script if modified
     time_t mtime = get_file_mtime(lua_ctx->lua_file);
@@ -123,16 +123,16 @@ gfxlc_lua_error_t gfxlc_lua_hot_reload(gfxlc_lua_t *lua_ctx)
         printf("reloading %s\n", lua_ctx->lua_file);
 
         lua_ctx->lua_last_mtime = mtime;
-        return gfxlc_lua_load_file(lua_ctx);
+        return gm_lua_load_file(lua_ctx);
     }
-    gfxlc_lua_error_t err;
+    gm_lua_error_t err;
     err.code = 0;
     err.message[0] = '\0';
     err.reloaded = false;
     return err;
 }
 
-int gfxlc_lua_call_draw(gfxlc_lua_t *lua_ctx, float dt)
+int gm_lua_call_draw(gm_lua_t *lua_ctx, float dt)
 {
     lua_getglobal(lua_ctx->L, "draw");
     lua_pushnumber(lua_ctx->L, dt);
@@ -147,14 +147,14 @@ int gfxlc_lua_call_draw(gfxlc_lua_t *lua_ctx, float dt)
     return 1;
 }
 
-static gfxlc_lua_game_t *gfxlc_lua_check_game(lua_State *L)
+static gm_lua_game_t *gm_lua_check_game(lua_State *L)
 {
-    return (gfxlc_lua_game_t *)luaL_checkudata(L, 1, GFXLC_GAME_MT);
+    return (gm_lua_game_t *)luaL_checkudata(L, 1, GM_GAME_MT);
 }
 
-static int gfxlc_lua_game_clear(lua_State *L)
+static int gm_lua_game_clear(lua_State *L)
 {
-    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
+    gm_lua_game_t *game = gm_lua_check_game(L);
     int r = luaL_checkinteger(L, 2);
     int g = luaL_checkinteger(L, 3);
     int b = luaL_checkinteger(L, 4);
@@ -174,9 +174,9 @@ static int gfxlc_lua_game_clear(lua_State *L)
     return 0;
 }
 
-static int gfxlc_lua_game_set_pixel(lua_State *L)
+static int gm_lua_game_set_pixel(lua_State *L)
 {
-    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
+    gm_lua_game_t *game = gm_lua_check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int r = luaL_checkinteger(L, 4);
@@ -197,9 +197,9 @@ static int gfxlc_lua_game_set_pixel(lua_State *L)
     return 0;
 }
 
-static int gfxlc_lua_game_fill_rect(lua_State *L)
+static int gm_lua_game_fill_rect(lua_State *L)
 {
-    gfxlc_lua_game_t *game = gfxlc_lua_check_game(L);
+    gm_lua_game_t *game = gm_lua_check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     int w = luaL_checkinteger(L, 4);
@@ -258,16 +258,16 @@ static int gfxlc_lua_game_fill_rect(lua_State *L)
     return 0;
 }
 
-int gfxlc_lua_register_game_api(lua_State *L, uint32_t *pixels, int width, int height)
+int gm_lua_register_game_api(lua_State *L, uint32_t *pixels, int width, int height)
 {
-    luaL_newmetatable(L, GFXLC_GAME_MT);
+    luaL_newmetatable(L, GM_GAME_MT);
 
     lua_newtable(L);
-    lua_pushcfunction(L, gfxlc_lua_game_clear);
+    lua_pushcfunction(L, gm_lua_game_clear);
     lua_setfield(L, -2, "clear");
-    lua_pushcfunction(L, gfxlc_lua_game_fill_rect);
+    lua_pushcfunction(L, gm_lua_game_fill_rect);
     lua_setfield(L, -2, "fill_rect");
-    lua_pushcfunction(L, gfxlc_lua_game_set_pixel);
+    lua_pushcfunction(L, gm_lua_game_set_pixel);
     lua_setfield(L, -2, "set_pixel");
     lua_pushinteger(L, width);
     lua_setfield(L, -2, "width");
@@ -277,12 +277,12 @@ int gfxlc_lua_register_game_api(lua_State *L, uint32_t *pixels, int width, int h
 
     lua_pop(L, 1);
 
-    gfxlc_lua_game_t *canvas = (gfxlc_lua_game_t *)lua_newuserdata(L, sizeof(gfxlc_lua_game_t));
+    gm_lua_game_t *canvas = (gm_lua_game_t *)lua_newuserdata(L, sizeof(gm_lua_game_t));
     canvas->pixels = pixels;
     canvas->w = width;
     canvas->h = height;
 
-    luaL_getmetatable(L, GFXLC_GAME_MT);
+    luaL_getmetatable(L, GM_GAME_MT);
     lua_setmetatable(L, -2);
     lua_setglobal(L, "gm");
 

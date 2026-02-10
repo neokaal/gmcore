@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(gfxlc VERSION 0.1 LANGUAGES C)
+project(gm VERSION 0.1 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -7,10 +7,10 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 # Sources
 set(SRC_FILES
-    src/gfxlc_util.c
-    src/gfxlc_fps.c
-    src/gfxlc_console.c
-    src/gfxlc_lua.c
+    src/gm_util.c
+    src/gm_fps.c
+    src/gm_console.c
+    src/gm_lua.c
     src/main.c
 )
 

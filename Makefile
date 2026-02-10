@@ -12,7 +12,7 @@ endif
 BUILD_DIR ?= build
 CMAKE ?= cmake
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-BINARY := $(BUILD_DIR)/gfxlc
+BINARY := $(BUILD_DIR)/gm
 
 .PHONY: all configure build install run run-example clean distclean help
 
@@ -34,13 +34,9 @@ install: build
 	@echo "Installing to $(BUILD_DIR)/install..."
 	@$(CMAKE) --install $(BUILD_DIR) --prefix $(BUILD_DIR)/install
 
-run: build
-	@echo "Running $(BINARY)"
-	@$(BINARY)
-
 run-example: build
 	@echo "Running with example lua program..."
-	@$(BINARY) examples/01_hello.lua
+	@cd examples/03_rect_move && ../../$(BINARY)
 
 clean:
 	@echo "Cleaning generated CMake files in $(BUILD_DIR)..."

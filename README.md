@@ -5,6 +5,7 @@ gmcore is a tiny, bare-bones game engine designed for learning.
 gmcore prioritizes minimal design, clarity, simplicity, and direct control.
 
 ## Features
+
 - easy to build/install/distribute
 - `lua` as the primary programming language
 - intentionally minimal API
@@ -13,13 +14,15 @@ gmcore prioritizes minimal design, clarity, simplicity, and direct control.
 - direct pixel access to the fixed-size game canvas
 
 ## Possible future additions
+
 - basic image loading (likely PPM)
 - simple sound generation via minimal api
 
 ## Usage
+
 - create a project directory
 - place a `game.lua` file in the directory
-- run `gmcore` in the directory
+- run `gm` in the directory
 - a game window opens
 - edit `game.lua` and see the changes immediately
 - iterate...

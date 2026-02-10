@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#include "gfxlc_util.h"
+#include "gm_util.h"
 
 int file_exists(const char *filename)
 {
