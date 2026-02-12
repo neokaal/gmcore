@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "gm_console.h"
 
 static void gm_console_destroy_text_cache(gm_console_t *con)
