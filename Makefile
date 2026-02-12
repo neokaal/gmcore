@@ -12,7 +12,7 @@ endif
 BUILD_DIR ?= build
 CMAKE ?= cmake
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-BINARY := $(BUILD_DIR)/gm
+BINARY := $(BUILD_DIR)/gmcore
 
 .PHONY: all configure build install run run-example clean distclean help
 

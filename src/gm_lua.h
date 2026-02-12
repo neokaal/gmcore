@@ -16,6 +16,7 @@ typedef struct
     uint32_t *pixels;
     int w;
     int h;
+    bool stop_running;
 } gm_lua_game_t;
 
 typedef struct
@@ -24,6 +25,7 @@ typedef struct
     lua_State *L;
     char *lua_file;
     time_t lua_last_mtime;
+    gm_lua_game_t *gm;
 } gm_lua_t;
 
 typedef struct
@@ -44,8 +46,9 @@ gm_lua_error_t gm_lua_hot_reload(gm_lua_t *lua_ctx);
 
 static gm_lua_game_t *gm_lua_check_game(lua_State *L);
 static int gm_lua_game_clear(lua_State *L);
+static int gm_lua_game_noloop(lua_State *L);
 static int gm_lua_game_set_pixel(lua_State *L);
 static int gm_lua_game_fill_rect(lua_State *L);
-int gm_lua_register_game_api(lua_State *L, uint32_t *pixels, int width, int height);
+int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int height);
 
 #endif // __GM_LUABIND_H__
