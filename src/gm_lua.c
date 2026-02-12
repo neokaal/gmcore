@@ -72,6 +72,10 @@ gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, uint32_t *pixels, int width, int 
     luaL_requiref(lc->L, LUA_TABLIBNAME, luaopen_table, 1);
     lua_pop(lc->L, 1);
 
+    // TODO: commented out - required only when debugging
+    // luaL_requiref(lc->L, LUA_OSLIBNAME, luaopen_os, 1);
+    // lua_pop(lc->L, 1);
+
     // register game API and load the initial script
     gm_lua_register_game_api(lc, pixels, width, height);
 
@@ -130,6 +134,9 @@ gm_lua_error_t gm_lua_load_file(gm_lua_t *lua_ctx)
         return err;
     }
     lua_pop(lua_ctx->L, 1);
+
+    // mark noloop false
+    lua_ctx->gm->stop_running = false;
 
     lua_ctx->lua_last_mtime = get_file_mtime(lua_ctx->lua_file);
     err.code = 0;
