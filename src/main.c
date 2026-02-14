@@ -131,7 +131,7 @@ int gm_init(gm_t *gfxlc)
     SDL_srand((unsigned int)time(NULL));
 
     // create a window with the given dimensions and title
-    gfxlc->window = SDL_CreateWindow("gfxlc", gfxlc->win_width, gfxlc->win_height, 0);
+    gfxlc->window = SDL_CreateWindow("GMCORE", gfxlc->win_width, gfxlc->win_height, 0);
     if (gfxlc->window == NULL)
     {
         SDL_Log("Could not get window... %s\n", SDL_GetError());
