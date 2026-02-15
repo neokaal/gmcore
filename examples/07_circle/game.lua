@@ -19,7 +19,7 @@ function draw(dt)
             local dy = cy - y
             local d = math.floor(math.sqrt((dx * dx) + (dy * dy)))
             if d == r then
-                gm:set_pixel(x, y, 255, 255, 255, 255)
+                gm:setPixel(x, y, 255, 255, 255, 255)
             end
         end
     end

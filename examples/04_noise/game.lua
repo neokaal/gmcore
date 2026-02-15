@@ -5,7 +5,7 @@ function draw(dt)
             local r = math.random(0, 255)
             local g = math.random(0, 255)
             local b = math.random(0, 255)
-            gm:set_pixel(x, y, r, g, b, 255)
+            gm:setPixel(x, y, r, g, b, 255)
         end
     end
 end

@@ -309,11 +309,11 @@ int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int
     lua_pushcfunction(L, gm_lua_game_clear);
     lua_setfield(L, -2, "clear");
     lua_pushcfunction(L, gm_lua_game_noloop);
-    lua_setfield(L, -2, "noloop");
-    lua_pushcfunction(L, gm_lua_game_fill_rect);
-    lua_setfield(L, -2, "fill_rect");
+    lua_setfield(L, -2, "noLoop");
+    // lua_pushcfunction(L, gm_lua_game_fill_rect);
+    // lua_setfield(L, -2, "fill_rect");
     lua_pushcfunction(L, gm_lua_game_set_pixel);
-    lua_setfield(L, -2, "set_pixel");
+    lua_setfield(L, -2, "setPixel");
     lua_pushinteger(L, width);
     lua_setfield(L, -2, "width");
     lua_pushinteger(L, height);
