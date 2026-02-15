@@ -299,6 +299,46 @@ static int gm_lua_game_noloop(lua_State *L)
     return 0;
 }
 
+static int gm_lua_game_save_pixels_to_image(lua_State *L)
+{
+    gm_lua_game_t *game = gm_lua_check_game(L);
+    char *filename = "frame.png";
+    if (lua_gettop(L) >= 2)
+    {
+        filename = luaL_checkstring(L, 2);
+    }
+
+    // Create a surface from the raw pixel data
+    SDL_Surface *surface = SDL_CreateSurfaceFrom(
+        game->w,
+        game->h,
+        SDL_PIXELFORMAT_RGBA8888,
+        game->pixels,
+        game->w * sizeof(Uint32) // Pitch: bytes per row
+    );
+
+    if (!surface)
+    {
+        SDL_Log("Failed to read pixels: %s", SDL_GetError());
+        return 0;
+    }
+
+    // Save to file
+    if (SDL_SavePNG(surface, filename))
+    {
+        SDL_Log("Screenshot saved: %s", filename);
+    }
+    else
+    {
+        SDL_Log("Failed to save PNG: %s", SDL_GetError());
+    }
+
+    // Free the surface
+    SDL_DestroySurface(surface);
+
+    return 0;
+}
+
 int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int height)
 {
     lua_State *L = lua_ctx->L;
@@ -314,6 +354,8 @@ int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int
     // lua_setfield(L, -2, "fill_rect");
     lua_pushcfunction(L, gm_lua_game_set_pixel);
     lua_setfield(L, -2, "setPixel");
+    lua_pushcfunction(L, gm_lua_game_save_pixels_to_image);
+    lua_setfield(L, -2, "saveFrame");
     lua_pushinteger(L, width);
     lua_setfield(L, -2, "width");
     lua_pushinteger(L, height);

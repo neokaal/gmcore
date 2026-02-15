@@ -60,6 +60,11 @@ The default value of alpha `a` is 255 if not provided.
 
 This function sets a single pixel value at the location given by `x, y` with the colour value `r, g, b, a`. `a` is optional and its default value is 255.
 
+## `gm:saveFrame(pngFileName)` - Save the frame pixels to a PNG image
+
+This function saves the pixel data for the current frame to a PNG file.
+The `filename` argument is optional. The default value of `filename` is `frame.png`.
+
 ## `gm:noLoop()` - Stop the game loop
 
 The game loop will stop, no more frames will be drawn till the `game.lua` is reloaded.
