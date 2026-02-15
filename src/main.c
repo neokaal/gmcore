@@ -107,9 +107,12 @@ int main(int argc, char *argv[])
         // 2. Call the draw function in the game program
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
-        if (!gm_lua_call_draw(lua_ctx, dt))
+        err = gm_lua_call_draw(lua_ctx, dt);
+        if (err.code != 0)
         {
-            break;
+            SDL_Log("Draw error: %s\n", err.message);
+            gm_console_add_text(console, err.message);
+            gm_console_show(console);
         }
         prev = now;
 

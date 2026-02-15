@@ -163,8 +163,13 @@ gm_lua_error_t gm_lua_hot_reload(gm_lua_t *lua_ctx)
     return err;
 }
 
-int gm_lua_call_draw(gm_lua_t *lua_ctx, float dt)
+gm_lua_error_t gm_lua_call_draw(gm_lua_t *lua_ctx, float dt)
 {
+    gm_lua_error_t err;
+    err.code = 0;
+    err.reloaded = false;
+    err.message[0] = '\0';
+
     if (!lua_ctx->gm->stop_running)
     {
         lua_getglobal(lua_ctx->L, "draw");
@@ -172,13 +177,18 @@ int gm_lua_call_draw(gm_lua_t *lua_ctx, float dt)
 
         if (lua_pcall(lua_ctx->L, 1, 0, 0) != LUA_OK)
         {
-            SDL_Log("lua draw error: %s\n", lua_tostring(lua_ctx->L, -1));
+            const char *lua_err_msg = lua_tostring(lua_ctx->L, -1);
+            snprintf(err.message, sizeof(err.message), "lua runtime error: %s", lua_err_msg);
+            err.code = 30;
+            SDL_Log("lua draw error: %s\n", lua_err_msg);
+
+            // turn off draw loop till next reload
+            lua_ctx->gm->stop_running = true;
             lua_pop(lua_ctx->L, 1);
-            return 0;
         }
     }
 
-    return 1;
+    return err;
 }
 
 static gm_lua_game_t *gm_lua_check_game(lua_State *L)

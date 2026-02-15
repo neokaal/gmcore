@@ -41,7 +41,7 @@ pack_rgba(int r, int g, int b, int a);
 gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, uint32_t *pixels, int width, int height);
 void gm_lua_shutdown(gm_lua_t *lua_ctx);
 gm_lua_error_t gm_lua_load_file(gm_lua_t *lua_ctx);
-int gm_lua_call_draw(gm_lua_t *lua_ctx, float t);
+gm_lua_error_t gm_lua_call_draw(gm_lua_t *lua_ctx, float t);
 gm_lua_error_t gm_lua_hot_reload(gm_lua_t *lua_ctx);
 
 static gm_lua_game_t *gm_lua_check_game(lua_State *L);
