@@ -4,7 +4,7 @@ gmcore is a tiny, bare-bones game engine designed for learning.
 
 gmcore prioritizes minimal design, clarity, simplicity, and direct control.
 
-## Features
+# Features
 
 - easy to build/install/distribute
 - `lua` as the primary programming language
@@ -13,12 +13,12 @@ gmcore prioritizes minimal design, clarity, simplicity, and direct control.
   - learning by building is the goal
 - direct pixel access to the fixed-size game canvas
 
-## Possible future additions
+# Possible future additions
 
 - basic image loading (likely PPM)
 - simple sound generation via minimal api
 
-## Usage
+# Usage
 
 - create a project directory
 - place a `game.lua` file in the directory
@@ -27,9 +27,9 @@ gmcore prioritizes minimal design, clarity, simplicity, and direct control.
 - edit `game.lua` and see the changes immediately
 - iterate...
 
-## API
+# API
 
-### Program Structure
+## Program Structure
 
 - _gmcore_ expects the `game.lua` file to define a `draw(dt)` function
   which will be called every frame.
@@ -41,14 +41,14 @@ function draw(dt)
 end
 ```
 
-### The `gm` object
+## The `gm` object
 
 All _gmcore_ functions and settings are accessed through the global
 `gm` object.
 
-#### `gm.width` and `gm.height` - Get the dimension of the game canvas in pixels.
+## `gm.width` and `gm.height` - Get the dimension of the game canvas in pixels.
 
-#### `gm:clear(r, g, b, a)` - Clear the screen
+## `gm:clear(r, g, b, a)` - Clear the screen
 
 This function clears the screen by settings the given red, green, blue, (and optional alpha) values to every pixel on the canvas.
 
@@ -56,14 +56,14 @@ The range of each colour value is **0-255 inclusive**.
 
 The default value of alpha `a` is 255 if not provided.
 
-#### `gm:setPixel(x, y, r, g, b, a)` - Set a single pixel
+## `gm:setPixel(x, y, r, g, b, a)` - Set a single pixel
 
 This function sets a single pixel value at the location given by `x, y` with the colour value `r, g, b, a`. `a` is optional and its default value is 255.
 
-#### `gm:noLoop()` - Stop the game loop
+## `gm:noLoop()` - Stop the game loop
 
 The game loop will stop, no more frames will be drawn till the `game.lua` is reloaded.
 
-## Status
+# Status
 
 This project is an early concept, so the API and the features list is unstable. Expect breaking changes.
