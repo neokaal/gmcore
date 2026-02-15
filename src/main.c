@@ -227,6 +227,15 @@ int gm_sdl_init(gm_t *gmctx)
         SDL_Log("SDL_CreateRenderer failed: %s\n", SDL_GetError());
         exit(1);
     }
+    else
+    {
+        // Enable VSync
+        if (SDL_SetRenderVSync(gmctx->renderer, 1) == false)
+        {
+            SDL_Log("Could not enable VSync! SDL error: %s\n", SDL_GetError());
+            exit(1);
+        }
+    }
 
     // create the texture
     gmctx->texture = SDL_CreateTexture(
