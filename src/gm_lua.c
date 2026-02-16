@@ -1,15 +1,46 @@
 #include <stdlib.h>
 #include "gm_lua.h"
 
-static inline uint32_t pack_rgba(int r, int g, int b, int a)
+static inline uint8_t gm_u8_clamp(int v)
 {
-    return ((uint32_t)(r & 0xFF) << 24) |
-           ((uint32_t)(g & 0xFF) << 16) |
-           ((uint32_t)(b & 0xFF) << 8) |
-           (uint32_t)(a & 0xFF);
+    if (v < 0)
+    {
+        return 0;
+    }
+    if (v > 255)
+    {
+        return 255;
+    }
+    return (uint8_t)v;
 }
 
-gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, uint32_t *pixels, int width, int height)
+static inline void gm_lua_apply_color(gm_lua_game_t *game, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    game->r = r;
+    game->g = g;
+    game->b = b;
+    game->a = a;
+    SDL_SetRenderDrawColor(game->renderer, game->r, game->g, game->b, game->a);
+}
+
+static inline void gm_lua_draw_brush(gm_lua_game_t *game, int x, int y)
+{
+    if (game->line_width <= 1)
+    {
+        SDL_RenderPoint(game->renderer, (float)x, (float)y);
+        return;
+    }
+
+    int half = game->line_width / 2;
+    SDL_FRect rect = {
+        .x = (float)(x - half),
+        .y = (float)(y - half),
+        .w = (float)game->line_width,
+        .h = (float)game->line_width};
+    SDL_RenderFillRect(game->renderer, &rect);
+}
+
+gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, SDL_Renderer *renderer, SDL_Texture *canvas_texture, int width, int height)
 {
     char *lua_file = "game.lua";
     bool file_found = false;
@@ -77,7 +108,7 @@ gm_lua_error_t gm_lua_init(gm_lua_t **lua_ctx, uint32_t *pixels, int width, int 
     // lua_pop(lc->L, 1);
 
     // register game API and load the initial script
-    gm_lua_register_game_api(lc, pixels, width, height);
+    gm_lua_register_game_api(lc, renderer, canvas_texture, width, height);
 
     return err;
 }
@@ -199,6 +230,30 @@ static gm_lua_game_t *gm_lua_check_game(lua_State *L)
 static int gm_lua_game_clear(lua_State *L)
 {
     gm_lua_game_t *game = gm_lua_check_game(L);
+    int argc = lua_gettop(L);
+
+    if (argc >= 4)
+    {
+        int r = luaL_checkinteger(L, 2);
+        int g = luaL_checkinteger(L, 3);
+        int b = luaL_checkinteger(L, 4);
+        int a = 255;
+        if (argc >= 5)
+        {
+            a = luaL_checkinteger(L, 5);
+        }
+        gm_lua_apply_color(game, gm_u8_clamp(r), gm_u8_clamp(g), gm_u8_clamp(b), gm_u8_clamp(a));
+    }
+
+    SDL_SetRenderDrawColor(game->renderer, game->r, game->g, game->b, game->a);
+    SDL_RenderClear(game->renderer);
+
+    return 0;
+}
+
+static int gm_lua_game_set_color(lua_State *L)
+{
+    gm_lua_game_t *game = gm_lua_check_game(L);
     int r = luaL_checkinteger(L, 2);
     int g = luaL_checkinteger(L, 3);
     int b = luaL_checkinteger(L, 4);
@@ -208,13 +263,19 @@ static int gm_lua_game_clear(lua_State *L)
         a = luaL_checkinteger(L, 5);
     }
 
-    uint32_t color = pack_rgba(r, g, b, a);
-    int count = game->w * game->h;
-    for (int i = 0; i < count; ++i)
-    {
-        game->pixels[i] = color;
-    }
+    gm_lua_apply_color(game, gm_u8_clamp(r), gm_u8_clamp(g), gm_u8_clamp(b), gm_u8_clamp(a));
+    return 0;
+}
 
+static int gm_lua_game_set_line_width(lua_State *L)
+{
+    gm_lua_game_t *game = gm_lua_check_game(L);
+    int w = luaL_checkinteger(L, 2);
+    if (w < 1)
+    {
+        w = 1;
+    }
+    game->line_width = w;
     return 0;
 }
 
@@ -223,21 +284,84 @@ static int gm_lua_game_set_pixel(lua_State *L)
     gm_lua_game_t *game = gm_lua_check_game(L);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
-    int r = luaL_checkinteger(L, 4);
-    int g = luaL_checkinteger(L, 5);
-    int b = luaL_checkinteger(L, 6);
-    int a = 255;
-    if (lua_gettop(L) >= 7)
-    {
-        a = luaL_checkinteger(L, 7);
-    }
+    int argc = lua_gettop(L);
 
     if (x < 0 || x >= game->w || y < 0 || y >= game->h)
     {
         return 0;
     }
 
-    game->pixels[y * game->w + x] = pack_rgba(r, g, b, a);
+    if (argc >= 6)
+    {
+        int r = luaL_checkinteger(L, 4);
+        int g = luaL_checkinteger(L, 5);
+        int b = luaL_checkinteger(L, 6);
+        int a = 255;
+        if (argc >= 7)
+        {
+            a = luaL_checkinteger(L, 7);
+        }
+        SDL_SetRenderDrawColor(game->renderer, gm_u8_clamp(r), gm_u8_clamp(g), gm_u8_clamp(b), gm_u8_clamp(a));
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(game->renderer, game->r, game->g, game->b, game->a);
+    }
+
+    gm_lua_draw_brush(game, x, y);
+    return 0;
+}
+
+static int gm_lua_game_line(lua_State *L)
+{
+    gm_lua_game_t *game = gm_lua_check_game(L);
+    int x1 = luaL_checkinteger(L, 2);
+    int y1 = luaL_checkinteger(L, 3);
+    int x2 = luaL_checkinteger(L, 4);
+    int y2 = luaL_checkinteger(L, 5);
+    int argc = lua_gettop(L);
+
+    if (argc >= 8)
+    {
+        int r = luaL_checkinteger(L, 6);
+        int g = luaL_checkinteger(L, 7);
+        int b = luaL_checkinteger(L, 8);
+        int a = 255;
+        if (argc >= 9)
+        {
+            a = luaL_checkinteger(L, 9);
+        }
+        SDL_SetRenderDrawColor(game->renderer, gm_u8_clamp(r), gm_u8_clamp(g), gm_u8_clamp(b), gm_u8_clamp(a));
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(game->renderer, game->r, game->g, game->b, game->a);
+    }
+
+    // Fast path: native line drawing for 1px width.
+    if (game->line_width <= 1)
+    {
+        SDL_RenderLine(game->renderer, (float)x1, (float)y1, (float)x2, (float)y2);
+        return 0;
+    }
+
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int adx = (dx < 0) ? -dx : dx;
+    int ady = (dy < 0) ? -dy : dy;
+    int steps = (adx > ady) ? adx : ady;
+    if (steps == 0)
+    {
+        gm_lua_draw_brush(game, x1, y1);
+        return 0;
+    }
+
+    for (int i = 0; i <= steps; ++i)
+    {
+        int x = x1 + (dx * i) / steps;
+        int y = y1 + (dy * i) / steps;
+        gm_lua_draw_brush(game, x, y);
+    }
     return 0;
 }
 
@@ -248,14 +372,7 @@ static int gm_lua_game_fill_rect(lua_State *L)
     int y = luaL_checkinteger(L, 3);
     int w = luaL_checkinteger(L, 4);
     int h = luaL_checkinteger(L, 5);
-    int r = luaL_checkinteger(L, 6);
-    int g = luaL_checkinteger(L, 7);
-    int b = luaL_checkinteger(L, 8);
-    int a = 255;
-    if (lua_gettop(L) >= 9)
-    {
-        a = luaL_checkinteger(L, 9);
-    }
+    int argc = lua_gettop(L);
 
     if (w <= 0 || h <= 0)
     {
@@ -289,15 +406,29 @@ static int gm_lua_game_fill_rect(lua_State *L)
         return 0;
     }
 
-    uint32_t color = pack_rgba(r, g, b, a);
-    for (int row = y0; row < y1; ++row)
+    if (argc >= 8)
     {
-        uint32_t *dst = game->pixels + row * game->w + x0;
-        for (int col = x0; col < x1; ++col)
+        int r = luaL_checkinteger(L, 6);
+        int g = luaL_checkinteger(L, 7);
+        int b = luaL_checkinteger(L, 8);
+        int a = 255;
+        if (argc >= 9)
         {
-            *dst++ = color;
+            a = luaL_checkinteger(L, 9);
         }
+        SDL_SetRenderDrawColor(game->renderer, gm_u8_clamp(r), gm_u8_clamp(g), gm_u8_clamp(b), gm_u8_clamp(a));
     }
+    else
+    {
+        SDL_SetRenderDrawColor(game->renderer, game->r, game->g, game->b, game->a);
+    }
+
+    SDL_FRect rect = {
+        .x = (float)x0,
+        .y = (float)y0,
+        .w = (float)(x1 - x0),
+        .h = (float)(y1 - y0)};
+    SDL_RenderFillRect(game->renderer, &rect);
 
     return 0;
 }
@@ -312,20 +443,16 @@ static int gm_lua_game_noloop(lua_State *L)
 static int gm_lua_game_save_pixels_to_image(lua_State *L)
 {
     gm_lua_game_t *game = gm_lua_check_game(L);
-    char *filename = "frame.png";
+    const char *filename = "frame.png";
     if (lua_gettop(L) >= 2)
     {
         filename = luaL_checkstring(L, 2);
     }
 
-    // Create a surface from the raw pixel data
-    SDL_Surface *surface = SDL_CreateSurfaceFrom(
-        game->w,
-        game->h,
-        SDL_PIXELFORMAT_RGBA8888,
-        game->pixels,
-        game->w * sizeof(Uint32) // Pitch: bytes per row
-    );
+    SDL_Texture *prev_target = SDL_GetRenderTarget(game->renderer);
+    SDL_SetRenderTarget(game->renderer, game->canvas_texture);
+    SDL_Surface *surface = SDL_RenderReadPixels(game->renderer, NULL);
+    SDL_SetRenderTarget(game->renderer, prev_target);
 
     if (!surface)
     {
@@ -349,7 +476,7 @@ static int gm_lua_game_save_pixels_to_image(lua_State *L)
     return 0;
 }
 
-int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int height)
+int gm_lua_register_game_api(gm_lua_t *lua_ctx, SDL_Renderer *renderer, SDL_Texture *canvas_texture, int width, int height)
 {
     lua_State *L = lua_ctx->L;
 
@@ -360,10 +487,16 @@ int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int
     lua_setfield(L, -2, "clear");
     lua_pushcfunction(L, gm_lua_game_noloop);
     lua_setfield(L, -2, "noLoop");
-    // lua_pushcfunction(L, gm_lua_game_fill_rect);
-    // lua_setfield(L, -2, "fill_rect");
+    lua_pushcfunction(L, gm_lua_game_set_color);
+    lua_setfield(L, -2, "setColor");
+    lua_pushcfunction(L, gm_lua_game_set_line_width);
+    lua_setfield(L, -2, "setLineWidth");
+    lua_pushcfunction(L, gm_lua_game_fill_rect);
+    lua_setfield(L, -2, "fillRect");
     lua_pushcfunction(L, gm_lua_game_set_pixel);
     lua_setfield(L, -2, "setPixel");
+    lua_pushcfunction(L, gm_lua_game_line);
+    lua_setfield(L, -2, "line");
     lua_pushcfunction(L, gm_lua_game_save_pixels_to_image);
     lua_setfield(L, -2, "saveFrame");
     lua_pushinteger(L, width);
@@ -375,9 +508,15 @@ int gm_lua_register_game_api(gm_lua_t *lua_ctx, uint32_t *pixels, int width, int
     lua_pop(L, 1);
 
     gm_lua_game_t *gm = (gm_lua_game_t *)lua_newuserdata(L, sizeof(gm_lua_game_t));
-    gm->pixels = pixels;
+    gm->renderer = renderer;
+    gm->canvas_texture = canvas_texture;
     gm->w = width;
     gm->h = height;
+    gm->r = 255;
+    gm->g = 255;
+    gm->b = 255;
+    gm->a = 255;
+    gm->line_width = 1;
     gm->stop_running = false;
 
     luaL_getmetatable(L, GM_GAME_MT);

@@ -20,9 +20,6 @@ typedef struct
     SDL_Event evt;
     uint64_t start_ticks;
 
-    // canvas pixel buffer
-    uint32_t *pixels;
-
     // canvas dimensions
     int cvs_width;
     int cvs_height;

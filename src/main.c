@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     // 3. Initialize the Lua Bindings
     gm_lua_t *lua_ctx = NULL;
-    gm_lua_error_t err = gm_lua_init(&lua_ctx, gmctx->pixels, gmctx->cvs_width, gmctx->cvs_height);
+    gm_lua_error_t err = gm_lua_init(&lua_ctx, gmctx->renderer, gmctx->texture, gmctx->cvs_width, gmctx->cvs_height);
     if (err.code > 100)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Lua context: %s\n", err.message);
@@ -104,7 +104,10 @@ int main(int argc, char *argv[])
             gm_console_hide(console);
         }
 
-        // 2. Call the draw function in the game program
+        // 2. Render game commands into the offscreen canvas texture
+        SDL_SetRenderTarget(gmctx->renderer, gmctx->texture);
+
+        // 3. Call the draw function in the game program
         uint64_t now = SDL_GetTicks();
         float dt = (float)(now - prev);
         err = gm_lua_call_draw(lua_ctx, dt);
@@ -116,12 +119,8 @@ int main(int argc, char *argv[])
         }
         prev = now;
 
-        // 3. Update the output texture with the pixels data from game program
-        SDL_UpdateTexture(
-            gmctx->texture,
-            NULL,
-            gmctx->pixels,
-            gmctx->cvs_width * (int)sizeof(uint32_t));
+        // Switch back to the window backbuffer for compositing UI + present
+        SDL_SetRenderTarget(gmctx->renderer, NULL);
 
         // 4. Clear renderer with a dark colour
         SDL_SetRenderDrawColor(gmctx->renderer, 0, 0, 10, SDL_ALPHA_OPAQUE);
@@ -194,14 +193,6 @@ int gm_sdl_init(gm_t *gmctx)
     gmctx->win_width = GFX_W;
     gmctx->win_height = GFX_H;
 
-    gmctx->pixels = malloc(gmctx->cvs_width * gmctx->cvs_height * sizeof(uint32_t));
-    if (!gmctx->pixels)
-    {
-        SDL_Log("out of memory\n");
-        exit(1);
-    }
-    memset(gmctx->pixels, 0, gmctx->cvs_width * gmctx->cvs_height * sizeof(uint32_t));
-
     // initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
@@ -244,7 +235,7 @@ int gm_sdl_init(gm_t *gmctx)
     gmctx->texture = SDL_CreateTexture(
         gmctx->renderer,
         SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING,
+        SDL_TEXTUREACCESS_TARGET,
         gmctx->cvs_width,
         gmctx->cvs_height);
 
@@ -256,6 +247,12 @@ int gm_sdl_init(gm_t *gmctx)
 
     // Set scale mode to NEAREST to get sharp pixel edges
     SDL_SetTextureScaleMode(gmctx->texture, SDL_SCALEMODE_PIXELART);
+
+    // Initialize canvas to opaque black.
+    SDL_SetRenderTarget(gmctx->renderer, gmctx->texture);
+    SDL_SetRenderDrawColor(gmctx->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(gmctx->renderer);
+    SDL_SetRenderTarget(gmctx->renderer, NULL);
 
     // init game loop vars
     gmctx->quit = 0;
@@ -284,11 +281,6 @@ void gm_sdl_shutdown(gm_t *gmctx)
         TTF_CloseFont(gmctx->font);
     }
     TTF_Quit();
-
-    if (gmctx->pixels)
-    {
-        free(gmctx->pixels);
-    }
 
     SDL_Quit();
 }
